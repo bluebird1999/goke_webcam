@@ -1,0 +1,42 @@
+[2020-09-21] [alpha-2.0] [ning]
+	升级了软件的消息系统，实现了消息执行和等待功能：服务器可以等待复杂的消息完毕后再处理新消息。
+
+[2020-09-22] [alpha-2.1] [ning]
+	bug 修复：
+	1. miss session里面的audio_start audio_stop错误的写为vedio_start。
+	2. miss服务器里面的video/audio消息队列锁错误的用为message队列锁。
+	增加：
+	1. video服务器STATUS_ERROR状态10秒后自动停止服务器并通知manager，然后重启。
+	2. readme
+	3. 增加软件说明文档进入repo。
+[2020-10-06] [alpha-3.0] [ning]
+	为了更清晰的协同开发，git拆分为子模块模式，使用方法：
+	[a] 检出
+		$ git clone https://github.com/bluebird1999/webcam-main   (检出主REPO)
+		$ cd webcam-main
+		$ git submodule init	(第一次需要该命令进行初始化)
+		$ git submodule update  (更新各个子模块到最新)
+	[b] 打开 (Eclipse模式)
+		1. 拷贝.setting, .cproject, .project到更目录
+		2. 打开Eclipse for C/C++
+		2. File->Open project from filesystem
+		3. 打开git webcam-main目录
+		4. 修改property里面的各种路径
+		5. 编译
+	[c] 添加子模块
+		1. 在子目录生成并提交子模块
+		2. 进入主目录
+		3. $ git submodule add [https://github.com/xxxxxx] [本地目录]
+		4. $ git add .
+		5. $ git commit -m "xxxxx"
+		6. $ git push origin master
+	[d] 提交模块修改
+		$ cd [模块]
+		$ git add .
+		$ git commit -m "xxx"
+		$ git push origin master
+	***拉取时不要忘记更新子项目(主模块运行git submodule update)，推送时不要忘记更改主项目中引用的子项目commitid***
+[2020-10-06] [alpha-3.1] [ning]
+	bug 修复：
+	增加：
+	1. 增加speaker服务器
