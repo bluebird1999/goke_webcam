@@ -169,12 +169,12 @@ static int recorder_thread_start_stream(recorder_job_t *ctrl) {
     msg.arg_in.cat = ctrl->init.quality;
     msg.message = MSG_VIDEO_START;
     if (global_common_send_message(SERVER_VIDEO, &msg) != 0) {
-        log_goke(DEBUG_SERIOUS, "video start failed from recorder!");
+        log_goke(DEBUG_SERIOUS, "video start message send failed from recorder!");
     }
     if (ctrl->init.audio) {
         msg.message = MSG_AUDIO_START;
         if (global_common_send_message(SERVER_AUDIO, &msg) != 0) {
-            log_goke(DEBUG_SERIOUS, "audio start failed from recorder!");
+            log_goke(DEBUG_SERIOUS, "audio start message send failed from recorder!");
         }
     }
 }
@@ -189,7 +189,7 @@ static int recorder_thread_stop_stream(recorder_job_t *ctrl, int real_stop) {
     msg.message = MSG_VIDEO_STOP;
     msg.sender = msg.receiver = SERVER_RECORDER;
     if (global_common_send_message(SERVER_VIDEO, &msg) != 0) {
-        log_goke(DEBUG_WARNING, "video stop failed from recorder!");
+        log_goke(DEBUG_SERIOUS, "video stop message send failed from recorder!");
     }
     if (ctrl->init.audio) {
         memset(&msg, 0, sizeof(message_t));
@@ -198,7 +198,7 @@ static int recorder_thread_stop_stream(recorder_job_t *ctrl, int real_stop) {
         msg.arg_in.wolf = ctrl->t_id;
         msg.arg_in.duck = real_stop;
         if (global_common_send_message(SERVER_AUDIO, &msg) != 0) {
-            log_goke(DEBUG_WARNING, "audio stop failed from recorder!");
+            log_goke(DEBUG_SERIOUS, "audio stop message send failed from recorder!");
         }
     }
 }
@@ -412,11 +412,11 @@ static int recorder_thread_pause(recorder_job_t *ctrl) {
         ctrl->run.start = temp1 + ctrl->init.repeat_interval;
         ctrl->run.stop = ctrl->run.start + temp2;
         ctrl->status = RECORDER_THREAD_STARTED;
-        log_goke(DEBUG_SERIOUS, "-------------add recursive recorder---------------------");
-        log_goke(DEBUG_SERIOUS, "now=%lld", time_get_now_stamp());
-        log_goke(DEBUG_SERIOUS, "start=%lld", ctrl->run.start);
-        log_goke(DEBUG_SERIOUS, "end=%lld", ctrl->run.stop);
-        log_goke(DEBUG_SERIOUS, "--------------------------------------------------");
+        log_goke(DEBUG_INFO, "-------------add recursive recorder---------------------");
+        log_goke(DEBUG_INFO, "now=%lld", time_get_now_stamp());
+        log_goke(DEBUG_INFO, "start=%lld", ctrl->run.start);
+        log_goke(DEBUG_INFO, "end=%lld", ctrl->run.stop);
+        log_goke(DEBUG_INFO, "--------------------------------------------------");
     }
     if (time_get_now_stamp() <= (ctrl->run.start - MAX_BETWEEN_RECODER_PAUSE)) {
         recorder_thread_check_and_exit_stream(ctrl, 1);
@@ -471,13 +471,13 @@ static int recorder_thread_run(recorder_job_t *ctrl) {
         avinfo = (av_data_info_t*) (vmsg.extra);
         p = (unsigned char *) (vmsg.arg);
         if (ctrl->run.first_frame && avinfo->fps != ctrl->run.fps) {
-            log_goke(DEBUG_SERIOUS, "the video fps has changed, stop recording!");
+            log_goke(DEBUG_WARNING, "the video fps has changed, stop recording!");
             ret = ERR_ERROR;
             goto close_exit;
         }
         if (ctrl->run.first_frame && (avinfo->width != ctrl->run.width
                                       || avinfo->height != ctrl->run.height)) {
-            log_goke(DEBUG_SERIOUS, "the video dimention has changed, stop recording!");
+            log_goke(DEBUG_WARNING, "the video dimention has changed, stop recording!");
             ret = ERR_ERROR;
             goto close_exit;
         }
@@ -512,7 +512,7 @@ static int recorder_thread_run(recorder_job_t *ctrl) {
 static int recorder_thread_started(recorder_job_t *ctrl) {
     int ret;
     if (time_get_now_stamp() >= ctrl->run.start) {
-        log_goke(DEBUG_SERIOUS, "------------start=%lld------------", time_get_now_stamp());
+        log_goke(DEBUG_INFO, "------------start=%lld------------", time_get_now_stamp());
         ret = recorder_thread_init_mp4v2(ctrl);
         if (ret) {
             log_goke(DEBUG_SERIOUS, "init mp4v2 failed!");
@@ -816,7 +816,7 @@ static int server_message_proc(void) {
             recorder_set_property(&msg);
             break;
         default:
-            log_goke(DEBUG_SERIOUS, "RECORDER not support message %s",
+            log_goke(DEBUG_WARNING, "RECORDER not support message %s",
                      global_common_message_to_string(msg.message));
             break;
     }
@@ -1066,7 +1066,7 @@ int server_recorder_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "RECORDER server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_WARNING, "RECORDER server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message) );
         pthread_mutex_unlock(&mutex);
@@ -1096,10 +1096,10 @@ int server_recorder_video_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&video_buff[id], msg);
-//    log_goke(DEBUG_VERBOSE, "RECORDER_VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
-//             global_common_get_server_name(msg->sender),
-//             global_common_message_to_string(msg->message),
-//             ret,message.head, message.tail);
+    log_goke(DEBUG_VERBOSE, "RECORDER_VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+             global_common_get_server_name(msg->sender),
+             global_common_message_to_string(msg->message),
+             ret,message.head, message.tail);
     if (ret == MSG_BUFFER_PUSH_FAIL )
         log_goke(DEBUG_WARNING, "message push in recorder video error =%d", ret);
     else {
@@ -1119,6 +1119,10 @@ int server_recorder_audio_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&audio_buff[id], msg);
+    log_goke(DEBUG_VERBOSE, "RECORDER_AUDIO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+             global_common_get_server_name(msg->sender),
+             global_common_message_to_string(msg->message),
+             ret,message.head, message.tail);
     if (ret == MSG_BUFFER_PUSH_FAIL )
         log_goke(DEBUG_WARNING, "message push in recorder audio error =%d", ret);
     else {

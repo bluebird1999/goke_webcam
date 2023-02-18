@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/../.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/common" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/manager" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/audio" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/device" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/goke" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/kernel" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/manager" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/miio" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/miss" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/player" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/recorder" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/scanner" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/video" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/video2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/server/video3" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools" vcs="Git" />
+  </component>
+</project>

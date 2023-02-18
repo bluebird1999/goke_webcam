@@ -112,7 +112,7 @@ static int video_uninit(void);
 static void ircut_opt_release(void)
 {
     gk_ircut_release();
-    log_goke(DEBUG_WARNING, "ircut_opt_release!");
+    log_goke(DEBUG_INFO, "ircut_opt_release!");
 }
 
 static void init_visual_stream_config(int id) {
@@ -308,7 +308,7 @@ static int zbar_process(VENC_STREAM_S *stream, int width, int height) {
     zbar_image_scanner_set_config(scanner, ZBAR_NONE, ZBAR_CFG_Y_DENSITY, 1);
     /* scan the image for barcodes */
     int n = zbar_scan_image(scanner, image);
-    log_goke(DEBUG_WARNING, "result1 n = %d\r", n);
+    log_goke(DEBUG_INFO, "result1 n = %d\r", n);
     /* extract results */
     if (n == 1) {
         const zbar_symbol_t *symbol = zbar_image_first_symbol(image);
@@ -316,7 +316,7 @@ static int zbar_process(VENC_STREAM_S *stream, int width, int height) {
             /* do something useful with results */
             zbar_symbol_type_t typ = zbar_symbol_get_type(symbol);
             const char *data = zbar_symbol_get_data(symbol);
-            log_goke(DEBUG_WARNING, "=========================================decoded %s symbol \"%s\"\r",
+            log_goke(DEBUG_INFO, "=========================================decoded %s symbol \"%s\"\r",
                      zbar_get_symbol_name(typ), data);
             result = calloc(strlen(data), 1);
             if (result) {
@@ -406,7 +406,7 @@ static int *video_isp_func(void *arg) {
     //data init
     ret = MPI_ISP_Run(0);
     if (HI_SUCCESS != ret) {
-        log_goke(DEBUG_WARNING, "HI_MPI_ISP_Run failed with %#x!", ret);
+        log_goke(DEBUG_SERIOUS, "HI_MPI_ISP_Run failed with %#x!", ret);
     }
     //release
     pthread_rwlock_wrlock(&ilock);
@@ -448,7 +448,7 @@ static void *video_isp_extra_func(void *pArgs) {
         pthread_rwlock_unlock(&ilock);
         ret = video_isp_proc(0);
         if( ret  ) {
-            log_goke(DEBUG_INFO, "-----------error happened in isp extra proc, exit!!!!!!!!!!!!!!!!!");
+            log_goke(DEBUG_WARNING, "-----------error happened in isp extra proc, exit!!!!!!!!!!!!!!!!!");
             break;
         }
         usleep( 500 * 1000); //500ms
@@ -510,7 +510,7 @@ static int *video_stream_func(void *arg) {
     /* Set Venc Fd. */
     fd = HI_MPI_VENC_GetFd(stream_info.channel);
     if (fd < 0) {
-        log_goke(DEBUG_WARNING, "HI_MPI_VENC_GetFd failed with %#x!", fd);
+        log_goke(DEBUG_SERIOUS, "HI_MPI_VENC_GetFd failed with %#x!", fd);
         return NULL;
     }
     if (max_fd <= fd) {
@@ -557,7 +557,7 @@ static int *video_stream_func(void *arg) {
                 //allocate stream node
                 stream.pstPack = (VENC_PACK_S *) malloc(sizeof(VENC_PACK_S) * stat.u32CurPacks);
                 if (NULL == stream.pstPack) {
-                    log_goke(DEBUG_WARNING, "malloc stream pack failed");
+                    log_goke(DEBUG_SERIOUS, "malloc stream pack failed");
                     break;
                 }
                 //get stream data
@@ -581,7 +581,7 @@ static int *video_stream_func(void *arg) {
                 }
                 data = malloc(total_size);
                 if (data == NULL) {
-                    log_goke(DEBUG_WARNING, "allocate memory failed in video buffer, size=%d", total_size);
+                    log_goke(DEBUG_SERIOUS, "allocate memory failed in video buffer, size=%d", total_size);
                     goto CLEAN;
                 }
                 total_size = 0;
@@ -689,7 +689,7 @@ static int *video_stream_func(void *arg) {
                 //release stream
                 ret = HI_MPI_VENC_ReleaseStream(stream_info.channel, &stream);
                 if (HI_SUCCESS != ret) {
-                    log_goke(DEBUG_WARNING, "HI_MPI_VENC_ReleaseStream failed, %x", ret);
+                    log_goke(DEBUG_SERIOUS, "HI_MPI_VENC_ReleaseStream failed, %x", ret);
                     free(stream.pstPack);
                     stream.pstPack = NULL;
                     break;
@@ -781,7 +781,7 @@ static void *video_osd_func(void *pArgs) {
         pthread_rwlock_unlock(&ilock);
         ret = osd_proc();
         if( ret == 0 ) {
-            log_goke(DEBUG_INFO, "-----------error happened in OSD proc, exit!!!!!!!!!!!!!!!!!");
+            log_goke(DEBUG_WARNING, "-----------error happened in OSD proc, exit!!!!!!!!!!!!!!!!!");
             break;
         }
         usleep( 500 * 1000); //500ms
@@ -1121,7 +1121,7 @@ static int video_set_property(message_t *msg) {
     if (msg->arg_in.cat == VIDEO_PROPERTY_QUALITY) {
         temp = *((int *) (msg->arg));
         if (_config_.video_quality != temp) {
-            int val = (temp == 2) ? VIDEO_STREAM_HIGH : VIDEO_STREAM_LOW;
+            int val = (temp > 0) ? VIDEO_STREAM_HIGH : VIDEO_STREAM_LOW;
             pthread_rwlock_wrlock(&ilock);
             for (int i = 0; i < MAX_AV_CHANNEL; i++) {
                 if ( (channel[i].status == CHANNEL_VALID) && (channel[i].channel_type == SERVER_ALIYUN) ) {
@@ -1181,7 +1181,7 @@ static int video_set_property(message_t *msg) {
                     if( info.status == STATUS_RUN ) {   //only apply change when the video is running
                         ret = HI_MPI_VPSS_SetChnAttr(video_config.vpss.group, i, &video_config.vpss.channel_info[i]);
                         if (ret) { //failed
-                            log_goke(DEBUG_INFO, "flip the video failed! original flip status = %d ",
+                            log_goke(DEBUG_WARNING, "flip the video failed! original flip status = %d ",
                                      _config_.video_mirror);
                             video_config.vpss.channel_info[i].bMirror = _config_.video_mirror;
                             break;
@@ -1413,26 +1413,26 @@ static int video_init(void) {
     //adjust parameters
     ret = video_adjust_parameters(&video_config);
     if (ret) {
-        log_goke(DEBUG_WARNING, "parameter error!");
+        log_goke(DEBUG_SERIOUS, "parameter error!");
         return -1;
     }
     //check chip
     ret = HI_MPI_SYS_GetChipId(&chip);
     if (ret != HI_SUCCESS || chip != CHIP_NAME_GK7205V200) {
-        log_goke(DEBUG_WARNING, "not support this chip");
+        log_goke(DEBUG_SERIOUS, "not support this chip");
         return -1;
     }
     //vi
     ret = hisi_init_vi(&video_config.vi, &info);
     if (HI_SUCCESS != ret) {
-        log_goke(DEBUG_WARNING, "start vi failed.ret:0x%x !", ret);
+        log_goke(DEBUG_SERIOUS, "start vi failed.ret:0x%x !", ret);
         return ret;
     }
     running_info.vi_init = info;
     //vpss
     ret = hisi_init_vpss(&video_config);
     if (HI_SUCCESS != ret) {
-        log_goke(DEBUG_WARNING, "start vpss group failed. ret: 0x%x !", ret);
+        log_goke(DEBUG_SERIOUS, "start vpss group failed. ret: 0x%x !", ret);
         return ret;
     }
     running_info.vpss_init = 1;
@@ -1444,7 +1444,7 @@ static int video_init(void) {
                 ret = hisi_init_snap_encoder(&video_config, i, HI_FALSE);
             }
             if (HI_SUCCESS != ret) {
-                log_goke(DEBUG_WARNING, "Venc Start failed for %#x!", ret);
+                log_goke(DEBUG_SERIOUS, "Venc Start failed for %#x!", ret);
                 return ret;
             }
             running_info.venc_init[i] = 1;
@@ -1474,7 +1474,7 @@ static int video_init(void) {
                            video_config.profile.stream[ID_MD].width,
                            video_config.profile.stream[ID_MD].height);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "init md failed. ret: 0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "init md failed. ret: 0x%x !", ret);
             return ret;
         }
         /********message body********/
@@ -1502,7 +1502,7 @@ static int video_start(void) {
     if (!misc_full_bit(running_info.vi_start, VI_INIT_START_BUTT)) {
         ret = hisi_start_vi(&video_config.vi, &info);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "start vi failed.ret:0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "start vi failed.ret:0x%x !", ret);
             return ret;
         }
         running_info.vi_start = info;
@@ -1531,7 +1531,7 @@ static int video_start(void) {
     if (!running_info.vpss_start) {
         ret = hisi_start_vpss(&video_config);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "start vpss failed. ret: 0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "start vpss failed. ret: 0x%x !", ret);
             return ret;
         }
         running_info.vpss_start = 1;
@@ -1542,7 +1542,7 @@ static int video_start(void) {
                 if (!running_info.venc_start[i]) {
                     ret = hisi_start_video_encoder(&video_config, i);
                     if (HI_SUCCESS != ret) {
-                        log_goke(DEBUG_WARNING, "Venc Start failed for %#x!", ret);
+                        log_goke(DEBUG_SERIOUS, "Venc Start failed for %#x!", ret);
                         return ret;
                     }
                     //start stream thread
@@ -1561,7 +1561,7 @@ static int video_start(void) {
                 if (!running_info.venc_start[i]) {
                     ret = hisi_start_snap_encoder(&video_config, i);
                     if (HI_SUCCESS != ret) {
-                        log_goke(DEBUG_WARNING, "Venc Start failed for %#x!", ret);
+                        log_goke(DEBUG_SERIOUS, "Venc Start failed for %#x!", ret);
                         return ret;
                     }
                     //start snap thread
@@ -2243,7 +2243,7 @@ int server_video_start(void) {
         log_goke(DEBUG_SERIOUS, "video server create error! ret = %d", ret);
         return ret;
     } else {
-        log_goke(DEBUG_SERIOUS, "video server create successful!");
+        log_goke(DEBUG_INFO, "video server create successful!");
         return 0;
     }
 }

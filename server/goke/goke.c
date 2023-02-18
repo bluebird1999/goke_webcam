@@ -91,7 +91,7 @@ static int goke_adjust_video_parameters(video_config_t *config) {
             config->vpss.channel_info[vpss].u32Width = config->profile.stream[i].width;
             config->vpss.channel_info[vpss].u32Height = config->profile.stream[i].height;
             config->vpss.enabled[vpss] = 1;
-            config->vpss.channel_info[vpss].bFlip = _config_.video_flip;
+            config->vpss.channel_info[vpss].bMirror = _config_.video_mirror;
         }
     }
     ISP_PUB_ATTR_GC2063.f32FrameRate = max;
@@ -146,6 +146,11 @@ static int server_setup(void) {
     message_t msg;
     //init av system
     if( info.status2==0 ) {
+        ret = hisi_register_vqe_module();
+        if( ret ) {
+            log_goke(DEBUG_WARNING,"%s: ai init vqe handle error with %x!", __FUNCTION__, ret);
+            return -1;
+        }
         ret = goke_adjust_video_parameters(&video_config);
         if (ret) {
             log_goke(DEBUG_SERIOUS, "goke parameter init fail");

@@ -257,20 +257,6 @@ int sd_proc(pthread_rwlock_t *lock) {
     char *block_path;
     char *mountpath;
 
-//    if (  ) {
-//        //sdcard plug in
-//        if (E_SDCARD_STATUS_NULL == sd_card_status) {
-//            sd_card_status = E_SDCARD_STATUS_PLUGIN;
-//        }
-//    } else {
-//    //sdcard plug out,if mount ,please umount
-//        sd_card_status = E_SDCARD_STATUS_NULL;
-//        if (sd_is_mount(SD_MOUNT_PATH)) {//sdcard has mount,please umount
-//            umount2(SD_MOUNT_PATH, MNT_FORCE);
-//            log_goke(DEBUG_WARNING, "unmount sdcard success");
-//        }
-//    }
-
     switch (sd_card_status) {
         case E_SDCARD_STATUS_NULL: { //无需操作
             if( !init_wait ) {  // only check once the program start to save resource untill hotplug event happened!

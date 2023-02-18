@@ -39,6 +39,9 @@
 #include "mpi_vgs.h"
 #include "audio_acodec.h"
 
+#include "hi_resampler_api.h"
+#include "hi_vqe_register_api.h"
+
 #define IVE_RECT_NUM   20
 
 typedef enum sensor_type_t {

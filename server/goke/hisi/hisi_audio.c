@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/prctl.h>
+#include <dlfcn.h>
 #include "../../../common/tools_interface.h"
 #include "../../../server/manager/manager_interface.h"
 #include "../../audio/config.h"
@@ -44,12 +45,54 @@ HI_S32 hisi_unbind_audio(AUDIO_DEV AiDev, AI_CHN AiChn, AENC_CHN AeChn) {
     return HI_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
 }
 
+static HI_VOID hisi_audio_add_lib_path(HI_VOID)
+{
+    HI_S32 s32Ret;
+    HI_CHAR aszLibPath[32] = {0};
+
+    s32Ret = Audio_Dlpath(aszLibPath);
+    if(HI_SUCCESS != s32Ret) {
+        log_goke( DEBUG_INFO, "%s: add lib path %s failed\n", __FUNCTION__, aszLibPath);
+    }
+    return;
+}
+
+int hisi_register_vqe_module(void)
+{
+    HI_S32 s32Ret = HI_SUCCESS;
+    AUDIO_VQE_REGISTER_S stVqeRegCfg = {0};
+
+    //Resample
+    stVqeRegCfg.stResModCfg.pHandle = HI_VQE_RESAMPLE_GetHandle();
+
+    //RecordVQE
+    stVqeRegCfg.stRecordModCfg.pHandle = HI_VQE_RECORD_GetHandle();
+
+    //TalkVQE
+    stVqeRegCfg.stHpfModCfg.pHandle = HI_VQE_HPF_GetHandle();
+    stVqeRegCfg.stAecModCfg.pHandle = HI_VQE_AEC_GetHandle();
+    stVqeRegCfg.stAgcModCfg.pHandle = HI_VQE_AGC_GetHandle();
+    stVqeRegCfg.stAnrModCfg.pHandle = HI_VQE_ANR_GetHandle();
+    stVqeRegCfg.stEqModCfg.pHandle = HI_VQE_EQ_GetHandle();
+
+    s32Ret = HI_MPI_AUDIO_RegisterVQEModule(&stVqeRegCfg);
+    if (s32Ret != HI_SUCCESS)
+    {
+        log_goke( DEBUG_WARNING, "%s: register vqe module fail with s32Ret = %x!\n", __FUNCTION__, s32Ret);
+        return HI_FAILURE;
+    }
+
+//    hisi_audio_add_lib_path();
+    return HI_SUCCESS;
+}
+
 HI_S32 hisi_inner_audio_codec(audio_config_t *config) {
     HI_S32 fdAcodec = -1;
     HI_S32 ret = HI_SUCCESS;
     ACODEC_FS_E i2s_fs_sel = 0;
     int iAcodecInputVol = 0;
     ACODEC_MIXER_E input_mode = 0;
+    ACODEC_VOL_CTRL vol_ctrl;
 
     fdAcodec = open(config->codec_file, O_RDWR);
     if (fdAcodec < 0) {
@@ -125,7 +168,17 @@ HI_S32 hisi_inner_audio_codec(audio_config_t *config) {
         log_goke(DEBUG_WARNING, ": set acodec micin volume failed");
         return HI_FAILURE;
     }
-
+    //
+    vol_ctrl.vol_ctrl = 10;
+    vol_ctrl.vol_ctrl_mute = 0;
+    if (ioctl(fdAcodec, ACODEC_SET_ADCL_VOL, &vol_ctrl)) {
+        log_goke(DEBUG_WARNING, ": set acodec left channel adc lelvel failed");
+        return HI_FAILURE;
+    }
+    if (ioctl(fdAcodec, ACODEC_SET_ADCR_VOL, &vol_ctrl)) {
+        log_goke(DEBUG_WARNING, ": set acodec right adc lelvel failed");
+        return HI_FAILURE;
+    }
     close(fdAcodec);
     return ret;
 }
@@ -161,7 +214,6 @@ HI_S32 hisi_init_ai(audio_config_t *config) {
         log_goke(DEBUG_WARNING, ": HI_MPI_AI_EnableChn(%d,%d) failed with %#x", config->ai_dev, i, ret);
         return ret;
     }
-/*
     ret = HI_MPI_AI_SetTalkVqeAttr(config->ai_dev, config->ai_channel, config->ao_dev, config->ao_channel,
                              (AI_TALKVQE_CONFIG_S *)&config->vqe_attr);
     if (ret) {
@@ -173,7 +225,6 @@ HI_S32 hisi_init_ai(audio_config_t *config) {
         log_goke(DEBUG_WARNING,": HI_MPI_AI_EnableVqe(%d,%d) failed with %#x", config->ai_dev, config->ai_channel, ret);
         return ret;
     }
-    */
     return HI_SUCCESS;
 }
 
@@ -296,11 +347,11 @@ HI_S32 hisi_init_ao(audio_config_t *config) {
         log_goke(DEBUG_WARNING, ": HI_MPI_AO_EnableChn(%d) failed with %#x!", i, ret);
         return HI_FAILURE;
     }
-	ret = HI_MPI_AO_GetVolume(config->ao_channel,&iVolume);
-
-	iVolume = 10;
-	ret = HI_MPI_AO_SetVolume(config->ao_channel,iVolume);
-
+	ret = HI_MPI_AO_SetVolume(config->ao_channel, config->speaker_volume);
+    if (HI_SUCCESS != ret) {
+        log_goke(DEBUG_WARNING, ": HI_MPI_AO_SetVolume(%d) failed with %#x!", config->speaker_volume, ret);
+        return HI_FAILURE;
+    }
     return HI_SUCCESS;
 }
 

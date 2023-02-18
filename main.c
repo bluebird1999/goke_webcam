@@ -43,14 +43,16 @@
  */
 /**/
 int main(int argc, char *argv[]) {
-    printf("++++++++++++++++++++++++++++++++++++++++++\r");
-    printf("   webcam started\r");
-    printf("---version---\r");
-    printf("%10s: %s\r", "program", APPLICATION_VERSION_STRING);
-
+    //config
     config_get(&_config_);
+    //print
+    printf("++++++++++++++++++++++++++++++++++++++++++\r\n");
+    printf("   webcam started\r\n");
+    printf("---version---\r\n");
+    printf(" %s\r\n", APPLICATION_VERSION_STRING);
+    printf(" log level = %d [0(none)-4(verbose)]\r\n", _config_.debug_level);
+    printf("++++++++++++++++++++++++++++++++++++++++++\r\n");
     manager_init();
-
 /*
  * main loop
  */

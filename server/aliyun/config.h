@@ -15,8 +15,8 @@
  * structure
  */
 typedef struct aliyun_config_t {
-    int     linkkit_debug_leval;
-    int     linkvisual_debug_leval;
+    int     linkkit_debug_level;
+    int     linkvisual_debug_level;
 } aliyun_config_t;
 
 aliyun_config_t   aliyun_config;

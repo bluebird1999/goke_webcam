@@ -2,6 +2,7 @@
 #define GLOBAL_CONFIG_H_
 
 #include <iot_export.h>
+#include "../../server/goke/hisi/hisi_common.h"
 
 #define CONFIG_PATH         "./webcam.config"
 
@@ -54,6 +55,7 @@ typedef struct config_t {
     unsigned char image_correct;
     char device_name[32];
     unsigned char debug_level;
+    AI_TALKVQE_CONFIG_S         vqe_attr;
 } config_t;
 
 

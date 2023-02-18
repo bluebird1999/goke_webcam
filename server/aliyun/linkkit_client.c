@@ -1444,17 +1444,17 @@ int linkkit_init_client(const char *product_key,
 
     /* 设置调试的日志级别 */
     if( _config_.debug_level == DEBUG_VERBOSE) {
-        aliyun_config.linkkit_debug_leval = IOT_LOG_DEBUG;
+        aliyun_config.linkkit_debug_level = IOT_LOG_DEBUG;
     } else if( _config_.debug_level == DEBUG_INFO) {
-        aliyun_config.linkkit_debug_leval = IOT_LOG_INFO;
+        aliyun_config.linkkit_debug_level = IOT_LOG_INFO;
     } else if( _config_.debug_level == DEBUG_WARNING) {
-        aliyun_config.linkkit_debug_leval = IOT_LOG_WARNING;
+        aliyun_config.linkkit_debug_level = IOT_LOG_WARNING;
     } else if( _config_.debug_level == DEBUG_SERIOUS) {
-        aliyun_config.linkkit_debug_leval = IOT_LOG_ERROR;
+        aliyun_config.linkkit_debug_level = IOT_LOG_CRIT;
     } else if( _config_.debug_level == DEBUG_NONE) {
-        aliyun_config.linkkit_debug_leval = IOT_LOG_NONE;
+        aliyun_config.linkkit_debug_level = IOT_LOG_NONE;
     }
-    IOT_SetLogLevel(aliyun_config.linkkit_debug_leval);
+    IOT_SetLogLevel(aliyun_config.linkkit_debug_level);
     /* Smart Living */
     aiot_kv_init();
     /* 注册链接状态的回调 */

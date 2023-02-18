@@ -57,6 +57,7 @@ HI_S32 hisi_unbind_ae_ai(audio_config_t *config);
 HI_S32 hisi_bind_ao_ad(audio_config_t *config);
 HI_S32 hisi_unbind_ao_ad(audio_config_t *config);
 int hisi_add_audio_header(unsigned char *input, int size);
+int hisi_register_vqe_module(void);
 //osd
 HI_S32 hisi_create_overlay_mix(int layer, int height, int width, PIXEL_FORMAT_E pixel, int color);
 HI_S32 hisi_destroy_region(int layer);

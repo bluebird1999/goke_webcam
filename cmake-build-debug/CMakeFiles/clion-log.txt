@@ -1,5 +1,0 @@
-/home/ning/tools/clion-2021.2.2/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_DEPENDS_USE_COMPILER=FALSE -G "CodeBlocks - Unix Makefiles" /home/ning/working/webcam/source/webcam
-/home/ning/working/webcam/source/webcam/../../library_goke
--- Configuring done
--- Generating done
--- Build files have been written to: /home/ning/working/webcam/source/webcam/cmake-build-debug

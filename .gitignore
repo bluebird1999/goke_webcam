@@ -1,3 +1,36 @@
+###excutable###
+webcam
+######################
+###### Mac OS X ######
+######################
+# Folder view configuration files
+.DS_Store
+Desktop.ini
+
+# Thumbnail cache files
+._*
+Thumbs.db
+
+# Files that might appear on external disks
+.Spotlight-V100
+.Trashes
+
+# Eclipse
+#.classpath
+#.project
+#.settings/
+#.cproject
+
+# Package Files #
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+#####C
+#######################
 # Prerequisites
 *.d
 
@@ -50,3 +83,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/Debug/
+

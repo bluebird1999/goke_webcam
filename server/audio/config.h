@@ -26,6 +26,7 @@ typedef struct audio_config_t {
     AIO_ATTR_S                  aio_attr;
     AI_TALKVQE_CONFIG_S         vqe_attr;
     int                         capture_volume;
+    int                         speaker_volume;
     PAYLOAD_TYPE_E              payload_type;
 } audio_config_t;
 

@@ -348,22 +348,20 @@ int wifi_connect(void) {
     if( !need_bind ) {
         return 0;
     }
-    log_goke(DEBUG_WARNING, "awss_connect:\r");
-    log_goke(DEBUG_WARNING, "ssid = %s\r", ssid);
+    log_goke(DEBUG_INFO, "awss_connect:\r");
+    log_goke(DEBUG_INFO, "ssid = %s\r", ssid);
     log_goke(DEBUG_WARNING, "passwd = %s\r", passwd);
-    log_goke(DEBUG_WARNING, "bssid: ");
+    log_goke(DEBUG_INFO, "bssid: ");
     for (int i = 0; i < sizeof(bssid) / 2; i++) {
-        log_goke(DEBUG_WARNING, "0x%02x ", bssid[i] & 0xff);
+        log_goke(DEBUG_INFO, "0x%02x ", bssid[i] & 0xff);
     }
-    log_goke(DEBUG_WARNING, "\r");
-    log_goke(DEBUG_WARNING, "token: ");
+    log_goke(DEBUG_INFO, "\r");
+    log_goke(DEBUG_INFO, "token: ");
     for (int i = 0; i < sizeof(token) / 2; i++) {
-        log_goke(DEBUG_WARNING, "0x%02x ", token[i] & 0xff);
+        log_goke(DEBUG_INFO, "0x%02x ", token[i] & 0xff);
     }
-    log_goke(DEBUG_WARNING, "\r");
-//    // connect to iot
-//    awss_connect(ssid, passwd, (uint8_t *)bssid, sizeof(bssid)/2,
-//    (uint8_t *)token, sizeof(token)/2, TOKEN_TYPE_CLOUD);
+    log_goke(DEBUG_INFO, "\r");
+//
     memset(cmd, 0, sizeof(cmd));
     snprintf( cmd, sizeof(cmd), "/usr/sbin/wpa_cli -i wlan0 add_network");
     ret = system(cmd);
@@ -399,26 +397,6 @@ int wifi_connect(void) {
     ret = system(cmd);
     log_goke( DEBUG_INFO, "ret=%d, %s", ret, cmd);
     sleep(1);
-
-//    memset(cmd, 0, sizeof(cmd));
-//    snprintf( cmd, sizeof(cmd), "/usr/sbin/wpa_cli -i wlan0 save_config");
-//    ret = system(cmd);
-//    log_goke( DEBUG_INFO, "ret=%d, %s", ret, cmd);
-//    sleep(1);
-//
-//    memset(cmd, 0, sizeof(cmd));
-//    snprintf( cmd, sizeof(cmd), "/usr/sbin/wpa_cli -i wlan0 select_network 0");
-//    ret = system(cmd);
-//    log_goke( DEBUG_INFO, "ret=%d, %s", ret, cmd);
-
-//    sleep(1);   //time for wifi driver init
-
-//    memset(cmd, 0, sizeof(cmd));
-//    snprintf( cmd, sizeof(cmd), "udhcpc -i wlan0 -v -b");
-//    ret = system(cmd);
-//    log_goke( DEBUG_INFO, "ret=%d, %s", ret, cmd);
-
-//    sleep(1);
     return 0;
 }
 
@@ -610,7 +588,7 @@ static int aliyun_get_uuid()
 			log_goke(DEBUG_SERIOUS,"unFind uuid");
 			return -1;
 		}
-		log_goke(DEBUG_SERIOUS,"product_key:%s\r\nproduct_secret:%s\r\ndevice_name:%s\r\ndevice_secret:%s\r\n",product_key,product_secret,device_name,device_secret);
+		log_goke(DEBUG_INFO,"product_key:%s\r\nproduct_secret:%s\r\ndevice_name:%s\r\ndevice_secret:%s\r\n",product_key,product_secret,device_name,device_secret);
 	}
 	return iRet;
 }
@@ -695,12 +673,12 @@ static int server_start(void) {
 }
 
 static int server_stop(void) {
-	log_goke(DEBUG_WARNING,"server_stop");
+	log_goke(DEBUG_INFO,"server_stop");
     return 0;
 }
 
 static int server_restart(void) {
-	log_goke(DEBUG_WARNING,"server_restart");
+	log_goke(DEBUG_INFO,"server_restart");
 	//linkvisual_client_stop();
 	linkkit_client_destroy();
 	info.status = STATUS_SETUP;
@@ -719,7 +697,7 @@ static int aliyun_message_block(void) {
     message_t msg;
     //search for unblocked message and swap if necessory
     if (!info.msg_lock) {
-        //    log_goke(DEBUG_VERBOSE, "===aliyun message block, return 0 when first message is msg_lock=0");
+        log_goke(DEBUG_VERBOSE, "===aliyun message block, return 0 when first message is msg_lock=0");
         return 0;
     }
     index = 0;
@@ -785,15 +763,15 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if (aliyun_message_filter(&msg)) {
-//        log_goke(DEBUG_VERBOSE, "ALIYUN message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
-//                 global_common_get_server_name(msg.sender),
-//                 global_common_message_to_string(msg.message), message.head, message.tail);
+        log_goke(DEBUG_VERBOSE, "ALIYUN message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+                 global_common_get_server_name(msg.sender),
+                 global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-//    log_goke(DEBUG_VERBOSE, "ALIYUN message popped: sender=%s, message=%s, head=%d, tail=%d",
-//             global_common_get_server_name(msg.sender),
-//             global_common_message_to_string(msg.message), message.head, message.tail);
+    log_goke(DEBUG_VERBOSE, "ALIYUN message popped: sender=%s, message=%s, head=%d, tail=%d",
+            global_common_get_server_name(msg.sender),
+             global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
         case MSG_ALIYUN_CONNECT:
             if (info.status == STATUS_IDLE) {
@@ -992,7 +970,7 @@ int server_aliyun_start(void) {
         log_goke(DEBUG_SERIOUS, "aliyun server create error! ret = %d", ret);
         return ret;
     } else {
-        log_goke(DEBUG_SERIOUS, "aliyun server create successful!");
+        log_goke(DEBUG_INFO, "aliyun server create successful!");
         return 0;
     }
 }
@@ -1010,10 +988,10 @@ int server_aliyun_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-//    log_goke(DEBUG_VERBOSE, "ALIYUN message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
-//             global_common_get_server_name(msg->sender),
-//             global_common_message_to_string(msg->message),
-//             ret,message.head, message.tail);
+    log_goke(DEBUG_VERBOSE, "ALIYUN message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+             global_common_get_server_name(msg->sender),
+             global_common_message_to_string(msg->message),
+             ret,message.head, message.tail);
     if (ret == MSG_BUFFER_PUSH_FAIL) {
         log_goke(DEBUG_WARNING, "ALIYUN message push in error =%d", ret);
     } else {

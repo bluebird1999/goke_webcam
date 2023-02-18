@@ -25,6 +25,6 @@ recorder_config_t recorder_config = {
     .quality[1].audio_sample = 8000,
     .quality[2].bitrate = 2048,
     .quality[2].audio_sample = 8000,
-    .max_length = 600,
+    .max_length = 180,
     .min_length = 3,
 };

@@ -354,17 +354,17 @@ int linkvisual_init_client(void)
     config.sub_num = 0;
     /* SDK的日志配置 */
     if( _config_.debug_level == DEBUG_VERBOSE) {
-        aliyun_config.linkvisual_debug_leval = IOT_LOG_DEBUG;
+        aliyun_config.linkkit_debug_level = IOT_LOG_DEBUG;
     } else if( _config_.debug_level == DEBUG_INFO) {
-        aliyun_config.linkvisual_debug_leval = IOT_LOG_INFO;
+        aliyun_config.linkkit_debug_level = IOT_LOG_INFO;
     } else if( _config_.debug_level == DEBUG_WARNING) {
-        aliyun_config.linkvisual_debug_leval = IOT_LOG_WARNING;
+        aliyun_config.linkkit_debug_level = IOT_LOG_WARNING;
     } else if( _config_.debug_level == DEBUG_SERIOUS) {
-        aliyun_config.linkvisual_debug_leval = IOT_LOG_ERROR;
+        aliyun_config.linkkit_debug_level = IOT_LOG_CRIT;
     } else if( _config_.debug_level == DEBUG_NONE) {
-        aliyun_config.linkvisual_debug_leval = IOT_LOG_NONE;
+        aliyun_config.linkkit_debug_level = IOT_LOG_NONE;
     }
-    config.log_level = aliyun_config.linkvisual_debug_leval;
+    config.log_level = aliyun_config.linkkit_debug_level;
     config.log_dest = LV_LOG_DESTINATION_STDOUT;
     /* 码流路数限制 */
     config.storage_record_source_solo_num = 1;

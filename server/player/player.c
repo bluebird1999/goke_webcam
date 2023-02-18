@@ -166,7 +166,7 @@ static int player_get_video_frame(player_init_t *init, player_run_t *run, int sp
             p += run->plen;
             memcpy(p, data, size);
             memcpy(p, NAL, 4);
-            log_goke(DEBUG_SERIOUS, "first key frame.");
+            log_goke(DEBUG_INFO, "first key frame.");
             lv_stream_send_media_param_s param = {{0}};
             param.common.type = LV_STREAM_MEDIA_VIDEO;
             param.common.p = (char *) mdata;
@@ -219,7 +219,6 @@ static int player_get_video_frame(player_init_t *init, player_run_t *run, int sp
             run->i_frame_read = 1;
             run->video_sync = start_time;
         }
-//        log_goke(DEBUG_VERBOSE, " data = %p,size=%d", data, size);
     }
     if ((speed == 1) || (speed == 2) ||
         (speed == 4) || (speed == 0)) {
@@ -325,7 +324,7 @@ static int player_open_mp4(player_init_t *init, player_run_t *run, file_list_nod
         return 0;
     run->mp4_file = MP4Read(run->file_path);
     if (!run->mp4_file) {
-        log_goke(DEBUG_SERIOUS, "Read error....%s", run->file_path);
+        log_goke(DEBUG_SERIOUS, "Player Read error....%s", run->file_path);
         return -1;
     }
     log_goke(DEBUG_INFO, "opened file %s", run->file_path);

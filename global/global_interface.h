@@ -10,9 +10,9 @@
 /*
  * define
  */
-#define				APPLICATION_VERSION_STRING	"alpha-1.0"
+#define				APPLICATION_VERSION_STRING	"alpha-2.0"
 
-//#define             RELEASE_VERSION              1
+#define             RELEASE_VERSION              1
 
 #define				MESSAGE_RESENT				100
 #define				MESSAGE_RESENT_SLEEP		1000*200

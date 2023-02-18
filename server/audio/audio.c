@@ -176,6 +176,7 @@ void* aduio_stream_func(void* arg)
     av_data_info_t avinfo;
     char *data;
     int     number = 0;
+    FILE *file = NULL;
     //thread preparation
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
@@ -246,6 +247,19 @@ void* aduio_stream_func(void* arg)
                 stream_info.goke_stamp = stream.u64TimeStamp;
                 stream_info.unix_stamp = time_get_now_stamp();
             }
+            //save temp audio file
+//            if( number == 0 ) {
+//                file = fopen("/mnt/sdcard/media/test.pcm","w+");
+//            }
+//            if( number < 400 ) {
+//                fwrite(stream.pStream + 4, stream.u32Len - 4, 1, file);
+//                fflush(file);
+//                number++;
+//            }
+//            else {
+//                fclose(file);
+//            }
+
             //***write audio info
             avinfo.flag = 0;
             avinfo.frame_index = stream.u32Seq;
@@ -309,7 +323,7 @@ void* aduio_stream_func(void* arg)
             /* finally you must release the stream */
             ret = HI_MPI_AENC_ReleaseStream( stream_info.channel, &stream);
             if (HI_SUCCESS != ret ) {
-                log_goke(DEBUG_WARNING,"%s: HI_MPI_AENC_ReleaseStream(%d), failed with %#x!", \
+                log_goke(DEBUG_SERIOUS,"%s: HI_MPI_AENC_ReleaseStream(%d), failed with %#x!", \
                        __FUNCTION__,  stream_info.channel, ret);
                 break;
             }
@@ -371,10 +385,10 @@ static int play_audio_file(char *path)
     while (1) {
         memset(buffer, 0, audio_config.aio_attr.u32PtNumPerFrm + 4);
         ret = fread(buffer + 4, 1,  audio_config.aio_attr.u32PtNumPerFrm, fp);
-        if( ret>=0 && feof(fp)){
+        if( ret>=0 && feof(fp)) {
             hisi_add_audio_header(buffer, ret);
             audio_speaker(buffer, ret + 4, 1);
-            log_goke(DEBUG_INFO, "finish");
+            log_goke(DEBUG_INFO, "finish audio playing");
             ret = 0;
             break;
         }else if(ferror(fp)) {
@@ -415,38 +429,43 @@ static int audio_play(int type)
 static int audio_init(void)
 {
 	int ret;
+    //
+    if(audio_config.payload_type == PT_AAC) {
+        HI_MPI_AENC_AacInit();
+        HI_MPI_ADEC_AacInit();
+    }
     //init ai
     ret = hisi_init_ai(&audio_config);
     if( ret ) {
-        log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+        log_goke(DEBUG_SERIOUS,"%s: ai init error with %x!", __FUNCTION__, ret);
         return -1;
     }
     running_info.ai_init = 1;
     //init audio codec
     ret = hisi_init_audio_codec(&audio_config);
     if( ret ) {
-        log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+        log_goke(DEBUG_SERIOUS,"%s: audio codec init error with %x!", __FUNCTION__, ret);
         return -1;
     }
     running_info.codec_init = 1;
     //init ae
     ret = hisi_init_ae(&audio_config);
     if( ret ) {
-        log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+        log_goke(DEBUG_SERIOUS,"%s: ae init error with %x!", __FUNCTION__, ret);
         return -1;
     }
     running_info.ae_init = 1;
     //init ao
     ret = hisi_init_ao(&audio_config);
     if( ret ) {
-        log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+        log_goke(DEBUG_SERIOUS,"%s: ao init failed with %x!", __FUNCTION__, ret);
         return -1;
     }
     running_info.ao_init = 1;
     //init ad
     ret = hisi_init_ad(&audio_config);
     if( ret ) {
-        log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+        log_goke(DEBUG_SERIOUS,"%s: ad init error with %x!", __FUNCTION__, ret);
         return -1;
     }
     running_info.ad_init = 1;
@@ -462,7 +481,7 @@ static int audio_start(void)
     if( !running_info.ai_start ) {
         ret = hisi_start_ai(&audio_config);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "start ai failed.ret:0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "start ai failed.ret:0x%x !", ret);
             return ret;
         }
         running_info.ai_start = 1;
@@ -471,12 +490,11 @@ static int audio_start(void)
     if( !running_info.ae_start ) {
         ret = hisi_start_ae(&audio_config);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "start ae failed. ret: 0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "start ae failed. ret: 0x%x !", ret);
             return ret;
         }
         //start stream thread
-        ret = pthread_create(&running_info.thread_id,
-                             NULL, aduio_stream_func, 0);
+        ret = pthread_create(&running_info.thread_id, 0, aduio_stream_func, 0);
         if (ret != 0) {
             hisi_stop_ae(&audio_config);
             log_goke(DEBUG_SERIOUS, "isp thread create error! ret = %d", ret);
@@ -490,7 +508,7 @@ static int audio_start(void)
     if( !running_info.ad_start ) {
         ret = hisi_start_ad(&audio_config);
         if (HI_SUCCESS != ret) {
-            log_goke(DEBUG_WARNING, "start ai failed.ret:0x%x !", ret);
+            log_goke(DEBUG_SERIOUS, "start ad failed.ret:0x%x !", ret);
             return ret;
         }
         running_info.ad_start = 1;
@@ -505,10 +523,24 @@ static int audio_start(void)
         running_info.ao_start = 1;
     }
     //binding
+//    AUDIO_DEV AiDev;
+//    AI_CHN AiChn;
+//    AO_CHN AoChn;
+//    MPP_CHN_S stSrcChn, stDestChn;
+//
+//    stSrcChn.enModId = HI_ID_AI;
+//    stSrcChn.s32DevId = AiDev;
+//    stSrcChn.s32ChnId = AiChn;
+//    stDestChn.enModId = HI_ID_AO;
+//    stDestChn.s32DevId = 0;
+//    stDestChn.s32ChnId = AoChn;
+//    ret = HI_MPI_SYS_Bind(&stSrcChn, &stDestChn);
+//    return 0;
+
     if( !running_info.ae_ai_bind ) {
         ret = hisi_bind_ae_ai(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: ae ai binding error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ae_ai_bind = 1;
@@ -516,7 +548,7 @@ static int audio_start(void)
     if( !running_info.ao_ad_bind ) {
         ret = hisi_bind_ao_ad(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_WARNING, "%s: ao ad binding error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ao_ad_bind = 1;
@@ -532,7 +564,7 @@ static int audio_stop(void)
     if( running_info.ao_ad_bind ) {
         ret = hisi_unbind_ao_ad(&audio_config);
         if( ret ) {
-            log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS,"%s: unbind ao ad error with 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ao_ad_bind = 0;
@@ -540,7 +572,7 @@ static int audio_stop(void)
     if( running_info.ae_ai_bind ) {
         ret = hisi_unbind_ae_ai(&audio_config);
         if( ret ) {
-            log_goke(DEBUG_WARNING,"%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS,"%s: unbind ae ai error with 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ae_ai_bind = 0;
@@ -549,7 +581,7 @@ static int audio_stop(void)
     if( running_info.ao_start ) {
         ret = hisi_stop_ao(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: stop ao error with 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ao_start = 0;
@@ -558,7 +590,7 @@ static int audio_stop(void)
     if( running_info.ad_start ) {
         ret = hisi_stop_ad(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: get chip id failed with 0x%d!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ad_start = 0;
@@ -567,7 +599,7 @@ static int audio_stop(void)
     if( running_info.ae_start ) {
         ret = hisi_stop_ae(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: stop ae with error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ae_start = 0;
@@ -576,7 +608,7 @@ static int audio_stop(void)
     if( running_info.ai_start ) {
         ret = hisi_stop_ai(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: stop ai failed with 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ai_start = 0;
@@ -591,7 +623,7 @@ static int audio_uninit(void)
     if( running_info.ao_init ) {
         ret = hisi_uninit_ao(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: uninit ao failed with error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ao_init = 0;
@@ -600,7 +632,7 @@ static int audio_uninit(void)
     if( running_info.ad_init ) {
         ret = hisi_uninit_ad(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: uninit ad failed with error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ad_init = 0;
@@ -609,7 +641,7 @@ static int audio_uninit(void)
     if( running_info.ae_init ) {
         ret = hisi_uninit_ae(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: uninit ae failed with error 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ae_init = 0;
@@ -618,13 +650,15 @@ static int audio_uninit(void)
     if( running_info.ai_init ) {
         ret = hisi_uninit_ai(&audio_config);
         if (ret) {
-            log_goke(DEBUG_WARNING, "%s: get chip id failed with %d!", __FUNCTION__, ret);
+            log_goke(DEBUG_SERIOUS, "%s: uninit ai error with 0x%x!", __FUNCTION__, ret);
             return -1;
         }
         running_info.ai_init = 0;
     }
-//    HI_MPI_AENC_AacDeInit();
-//    HI_MPI_ADEC_AacDeInit();
+    if( audio_config.payload_type == PT_AAC ) {
+        HI_MPI_AENC_AacDeInit();
+        HI_MPI_ADEC_AacDeInit();
+    }
     return 0;
 }
 

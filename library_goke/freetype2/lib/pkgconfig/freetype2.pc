@@ -1,0 +1,14 @@
+prefix=/home/ning/library_goke/freetype2
+exec_prefix=/home/ning/library_goke/freetype2
+libdir=/home/ning/library_goke/freetype2/lib
+includedir=/home/ning/library_goke/freetype2/include
+
+Name: FreeType 2
+URL: https://freetype.org
+Description: A free, high-quality, and portable font engine.
+Version: 23.0.17
+Requires:
+Requires.private: 
+Libs: -L${libdir} -lfreetype
+Libs.private: 
+Cflags: -I${includedir}/freetype2
