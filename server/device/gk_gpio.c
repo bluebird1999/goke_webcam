@@ -5,13 +5,6 @@
 #include <fcntl.h>
 #include "gk_gpio.h"
 
-typedef struct gk_gpio_map{
-	int iNum;//GPIO口
-	int iDefValue;//默认值，输入不关注默认值
-	int iDirection;//方向,0:输入 1:输出
-}gk_gpio_map;
-
-
 gk_gpio_map stGpioDef[] = {
 	{GK_GPIO_RESET,0,0},//reset
 	{GK_GPIO_IRCUT1,0,1},//ircut 1
@@ -19,15 +12,7 @@ gk_gpio_map stGpioDef[] = {
 	{GK_GPIO_LED1,0,1},//LED1
 	{GK_GPIO_LED2,0,1},//LED2
 	{GK_GPIO_IRLED,0,1},//IR LED
-    {GK_GPIO_SPEAKER,0,1},//speaker
-	{56,0,1},//motor M2B-
-	{57,0,1},//motor M2B+
-	{58,0,1},//motor M2A-
-	{59,0,1},//motor M2A+
-	{68,0,1},//motor M1B-
-	{69,0,1},//motor M1A-
-	{70,0,1},//motor M1B+
-	{71,0,1}//motor M1A+
+    {GK_GPIO_SPEAKER,0,1}//speaker
 };
 
 int gk_gpio_export(int num)
@@ -51,6 +36,30 @@ int gk_gpio_export(int num)
 		fwrite(temp,1,strlen(temp),fp);
 		fclose(fp);
 	}
+    return 0;
+}
+
+int gk_gpio_unexport(int num)
+{
+    FILE *fp = NULL;
+    char temp[128] = {0};
+    sprintf(temp,"/sys/class/gpio/gpio%d/value",num);
+    if(access(temp,F_OK) == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        fp = fopen("/sys/class/gpio/unexport", "w");
+        if (NULL == fp)
+        {
+            printf("fail to unexport gpio%d!\r\n",num);
+            return -1;
+        }
+        sprintf(temp,"%d",num);
+        fwrite(temp,1,strlen(temp),fp);
+        fclose(fp);
+    }
     return 0;
 }
 

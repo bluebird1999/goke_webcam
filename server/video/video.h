@@ -61,6 +61,7 @@ typedef struct video_channel_t {
     video_stream_type_t     stream_type;
     int                     service_id;
     bool                    require_key;
+    int                     qos_sucess;
 } video_channel_t;
 
 /*

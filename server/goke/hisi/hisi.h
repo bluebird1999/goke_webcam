@@ -65,8 +65,11 @@ HI_S32 hisi_attach_region_to_chn(int layer, int offset_x, int offset_y, MPP_CHN_
 HI_S32 hisi_detach_from_chn(HI_S32 HandleNum, MPP_CHN_S *pstMppChn);
 HI_S32 hisi_set_region_bitmap(BITMAP_S *data, RGN_HANDLE Handle);
 //md
-HI_S32 hisi_init_md(md_info_t *pstMd, HI_U32 u32Width, HI_U32 u32Height);
-HI_VOID hisi_uninit_md(md_info_t *pstMd);
+HI_S32 hisi_init_md(md_config_t *pstMd, int value, HI_U32 u32Width, HI_U32 u32Height);
+HI_VOID hisi_uninit_md(md_config_t *pstMd);
 HI_S32 hisi_md_dma_image(VIDEO_FRAME_INFO_S *pstFrameInfo, IVE_DST_IMAGE_S *pstDst, HI_BOOL bInstant);
-
+HI_VOID ive_blob_to_rect(IVE_CCBLOB_S *pstBlob, rect_array_t *pstRect,
+                         HI_U16 u16RectMaxNum,HI_U16 u16AreaThrStep,
+                         HI_U32 u32SrcWidth, HI_U32 u32SrcHeight,
+                         HI_U32 u32DstWidth,HI_U32 u32DstHeight);
 #endif

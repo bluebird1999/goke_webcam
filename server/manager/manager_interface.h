@@ -49,9 +49,6 @@ typedef void (*AHANDLER)(void *arg);
 /*
  *  property type
  */
-#define	PROPERTY_TYPE_GET					(1 << 12)
-#define	PROPERTY_TYPE_SET					(1 << 13)
-#define	PROPERTY_TYPE_NOTIFY				(1 << 14)
 
 /*
  * structure

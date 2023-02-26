@@ -5,6 +5,12 @@
 extern "C" {
 #endif
 
+typedef struct gk_gpio_map{
+    int iNum;//GPIO口
+    int iDefValue;//默认值，输入不关注默认值
+    int iDirection;//方向,0:输入 1:输出
+} gk_gpio_map;
+
 #define GK_GPIO_RESET		9
 #define GK_GPIO_IRCUT1		14  //gpio1-6
 #define GK_GPIO_IRCUT2		13  //gpio1-5
@@ -26,6 +32,11 @@ int gk_led1_on();
 int gk_led1_off();
 int gk_led2_on();
 int gk_led2_off();
+int gk_gpio_export(int num);
+int gk_gpio_unexport(int num);
+int gk_gpio_setdir(int num,char *pdir);
+int gk_gpio_setvalue(int num, int value);
+int gk_gpio_getvalue(int num, int *value);
 
 #ifdef __cplusplus
 }

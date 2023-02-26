@@ -10,7 +10,7 @@
 /*
  * define
  */
-#define				APPLICATION_VERSION_STRING	"alpha-2.0"
+#define				APPLICATION_VERSION_STRING	"alpha-3.0"
 
 #define             RELEASE_VERSION              1
 

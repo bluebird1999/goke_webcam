@@ -18,5 +18,6 @@
  * function
  */
 void manager_wakeup(void);
+void manager_apply_debug_config(void);
 
 #endif

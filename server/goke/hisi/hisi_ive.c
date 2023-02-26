@@ -218,7 +218,7 @@ HI_S32 ive_create_memory_info(IVE_MEM_INFO_S *pstMemInfo, HI_U32 u32Size) {
     return HI_SUCCESS;
 }
 
-HI_VOID hisi_uninit_md(md_info_t *pstMd) {
+HI_VOID hisi_uninit_md(md_config_t *pstMd) {
     HI_S32 i;
     HI_S32 s32Ret = HI_SUCCESS;
 
@@ -233,7 +233,7 @@ HI_VOID hisi_uninit_md(md_info_t *pstMd) {
     }
 }
 
-HI_S32 hisi_init_md(md_info_t *pstMd, HI_U32 u32Width, HI_U32 u32Height) {
+HI_S32 hisi_init_md(md_config_t *pstMd, int sad_thresh, HI_U32 u32Width, HI_U32 u32Height) {
     HI_S32 s32Ret = HI_SUCCESS;
     HI_S32 i;
     HI_U32 u32Size;
@@ -257,7 +257,7 @@ HI_S32 hisi_init_md(md_info_t *pstMd, HI_U32 u32Width, HI_U32 u32Height) {
     pstMd->md_attr.enAlgMode = MD_ALG_MODE_BG;
     pstMd->md_attr.enSadMode = IVE_SAD_MODE_MB_4X4;
     pstMd->md_attr.enSadOutCtrl = IVE_SAD_OUT_CTRL_THRESH;
-    pstMd->md_attr.u16SadThr = 100 * (1 << 1);//100 * (1 << 2);
+    pstMd->md_attr.u16SadThr = sad_thresh;
     pstMd->md_attr.u32Width = u32Width;
     pstMd->md_attr.u32Height = u32Height;
     pstMd->md_attr.stAddCtrl.u0q16X = 32768;

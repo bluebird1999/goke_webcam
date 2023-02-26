@@ -44,8 +44,11 @@ static void log_wrapper(const char* format, va_list args_list, char *file, int l
 		case DEBUG_INFO:
 			printf("[I] ");
 			break;
-		case DEBUG_VERBOSE:
-			printf("[V] ");
+        case DEBUG_VERBOSE:
+            printf("[V] ");
+			break;
+		case DEBUG_MAX:
+			printf("[M] ");
 			break;
 	}
     vprintf(format, args_list);

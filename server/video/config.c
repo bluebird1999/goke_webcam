@@ -40,7 +40,7 @@ video_config_t video_config = {
         .profile.stream[ID_PIC].gop = 5,
         .profile.stream[ID_PIC].vpss_chn = 0,    //dynamic
         .profile.stream[ID_PIC].venc_chn = 2,    //fixed
-        .profile.stream[ID_MD].enable = 0,
+        .profile.stream[ID_MD].enable = 1,
         .profile.stream[ID_MD].type = PT_JPEG,
         .profile.stream[ID_MD].size = PIC_360P,
         .profile.stream[ID_MD].frame_rate = 5,
@@ -136,7 +136,7 @@ video_config_t video_config = {
         .vpss.channel_info[ID_PIC].stFrameRate.s32DstFrameRate = 5,
         .vpss.channel_info[ID_PIC].bMirror = 0,
         .vpss.channel_info[ID_PIC].bFlip = 0,
-        .vpss.channel_info[ID_PIC].u32Depth = 2,
+        .vpss.channel_info[ID_PIC].u32Depth = 1,
         .vpss.channel_info[ID_PIC].stAspectRatio.enMode = ASPECT_RATIO_NONE,
 
         .region.overlay[ID_HIGH].id = 0,
@@ -169,12 +169,13 @@ video_config_t video_config = {
         .region.overlay[ID_PIC].font_face = "FreeMono",
         .region.overlay[ID_PIC].venc_chn = 2,
 
-        .md.sad_thresh[0] = 0,
-        .md.sad_thresh[1] = 20,
-        .md.sad_thresh[2] = 70,
+        .md.md_channel = 0,
+        .md.sad_thresh[0] = 65535,
+        .md.sad_thresh[1] = 200,
+        .md.sad_thresh[2] = 150,
         .md.sad_thresh[3] = 100,
-        .md.sad_thresh[4] = 180,
-        .md.sad_thresh[5] = 220,
+        .md.sad_thresh[4] = 70,
+        .md.sad_thresh[5] = 20,
 
         .md.alarm_interval[0] = 10,     //low freqency in minutes
         .md.alarm_interval[1] = 3,

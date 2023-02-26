@@ -38,6 +38,28 @@ static int start_push_streaming_cb(const lv_device_auth_s *auth, const lv_start_
 
     switch(param->common.stream_cmd_type) {
         case LV_STREAM_CMD_LIVE:
+#if 0
+            //player init
+            memset(&player, 0, sizeof(player_init_t));
+            player.start = 1676889652;
+            player.stop = 1677062452;
+            player.offset = 0;
+            player.speed = 1;
+            player.channel_merge = 0;
+            player.switch_to_live = 1;
+            player.audio = 1;
+            player.type = 1;
+            player.channel = param->common.service_id;
+            //send for player server
+            msg_init(&msg);
+            msg.sender = msg.receiver = SERVER_ALIYUN;
+            msg.message = MSG_PLAYER_REQUEST;
+            msg.arg_in.duck = msg.arg_pass.duck = STREAM_SOURCE_PLAYER;
+            msg.arg_in.wolf = msg.arg_pass.wolf = param->common.service_id;
+            msg.arg = &player;
+            msg.arg_size = sizeof(player_init_t);
+            global_common_send_message( SERVER_PLAYER, &msg);
+#endif
             log_goke(DEBUG_WARNING,"LV_STREAM_CMD_LIVE");
             //send for video server
             msg_init(&msg);
@@ -223,8 +245,17 @@ static int on_push_streaming_cmd_cb(const lv_device_auth_s *auth, const lv_on_pu
 }
 
 static int on_push_streaming_data_cb(const lv_device_auth_s *auth, const lv_on_push_streaming_data_param_s *param) {
-    printf("Receive voice data, param = %d %d %d %d, size = %u, timestamp = %u",
+    log_goke(DEBUG_MAX, "Receive voice data, param = %d %d %d %d, size = %u, timestamp = %u",
            param->audio_param->format, param->audio_param->channel, param->audio_param->sample_bits, param->audio_param->sample_rate, param->len, param->timestamp);
+
+    message_t msg;
+    msg_init(&msg);
+    msg.message = MSG_AUDIO_SPEAKER_DATA;
+    msg.arg_in.cat = SPEAKER_CTL_INTERCOM_DATA;
+    msg.arg = (void *)param->p;
+    msg.arg_size = param->len;
+    msg.arg_in.wolf = param->service_id;
+    global_common_send_message(SERVER_AUDIO,&msg);
     return 0;
 }
 
@@ -243,12 +274,6 @@ static int voice_intercom_receive_metadata_cb(int service_id,
 static void voice_intercom_receive_data_cb(const char *buffer, 
         unsigned int buffer_size) 
 {
-    message_t msg;
-    msg_init(&msg);
-    msg.message = MSG_AUDIO_SPEAKER_DATA;
-    msg.arg = (void *)buffer;
-    msg.arg_size = buffer_size;
-    global_common_send_message(SERVER_AUDIO,&msg);
 }
 
 static void query_storage_record_cb(const lv_device_auth_s *auth, const lv_query_record_param_s *param) {
@@ -292,12 +317,12 @@ static int trigger_pic_capture_cb(const char *trigger_id)
     message_t msg;
     memset(fname, 0, sizeof(fname));
     sprintf(fname, "%s%s/ss-%s.jpg", manager_config.media_directory,
-            manager_config.folder_prefix[LV_STORAGE_RECORD_PLAN], trigger_id);
+            manager_config.folder_prefix[LV_STORAGE_RECORD_INITIATIVE], trigger_id);
     /**********************************************/
     /**********************************************/
     msg_init(&msg);
     msg.sender = msg.receiver = SERVER_ALIYUN;
-    msg.arg_in.cat = SNAP_TYPE_NORMAL;
+    msg.arg_in.cat = SNAP_TYPE_CLOUD;
     msg.arg = fname;
     msg.arg_size = strlen(fname) + 1;
     server_video_snap_message(&msg);
@@ -353,14 +378,16 @@ int linkvisual_init_client(void)
     config.device_type = 0;
     config.sub_num = 0;
     /* SDK的日志配置 */
-    if( _config_.debug_level == DEBUG_VERBOSE) {
-        aliyun_config.linkkit_debug_level = IOT_LOG_DEBUG;
+    if( _config_.debug_level == DEBUG_MAX) {
+        aliyun_config.linkkit_debug_level = LV_LOG_MAX;
+    } else if( _config_.debug_level == DEBUG_VERBOSE) {
+        aliyun_config.linkkit_debug_level = LV_LOG_VERBOSE;
     } else if( _config_.debug_level == DEBUG_INFO) {
-        aliyun_config.linkkit_debug_level = IOT_LOG_INFO;
+        aliyun_config.linkkit_debug_level = LV_LOG_INFO;
     } else if( _config_.debug_level == DEBUG_WARNING) {
-        aliyun_config.linkkit_debug_level = IOT_LOG_WARNING;
+        aliyun_config.linkkit_debug_level = LV_LOG_WARN;
     } else if( _config_.debug_level == DEBUG_SERIOUS) {
-        aliyun_config.linkkit_debug_level = IOT_LOG_CRIT;
+        aliyun_config.linkkit_debug_level = LV_LOG_ERROR;
     } else if( _config_.debug_level == DEBUG_NONE) {
         aliyun_config.linkkit_debug_level = IOT_LOG_NONE;
     }

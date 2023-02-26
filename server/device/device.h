@@ -28,6 +28,7 @@ typedef enum device_init_condition_e {
 typedef enum device_thread_id_enum {
     DEVICE_THREAD_SD,
     DEVICE_THREAD_HOTPLUG,
+    DEVICE_THREAD_MOTOR,
     DEVICE_THREAD_IO,
     DEVICE_THREAD_BUTT,
 } device_thread_id_enum;

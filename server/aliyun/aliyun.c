@@ -697,18 +697,18 @@ static int aliyun_message_block(void) {
     message_t msg;
     //search for unblocked message and swap if necessory
     if (!info.msg_lock) {
-        log_goke(DEBUG_VERBOSE, "===aliyun message block, return 0 when first message is msg_lock=0");
+        log_goke(DEBUG_MAX, "===aliyun message block, return 0 when first message is msg_lock=0");
         return 0;
     }
     index = 0;
     msg_init(&msg);
     ret = msg_buffer_probe_item(&message, index, &msg);
     if (ret) {
-        log_goke(DEBUG_VERBOSE, "===aliyun message block, return 0 when first message is empty");
+        log_goke(DEBUG_MAX, "===aliyun message block, return 0 when first message is empty");
         return 0;
     }
     if (msg_is_system(msg.message) || msg_is_response(msg.message)) {
-        log_goke(DEBUG_VERBOSE, "===aliyun message block, return 0 when first message is system or response message %s",
+        log_goke(DEBUG_MAX, "===aliyun message block, return 0 when first message is system or response message %s",
                  global_common_message_to_string(msg.message));
         return 0;
     }
@@ -718,7 +718,7 @@ static int aliyun_message_block(void) {
         msg_init(&msg);
         ret = msg_buffer_probe_item(&message, index, &msg);
         if (ret) {
-            log_goke(DEBUG_VERBOSE, "===aliyun message block, return 1 when message index = %d is not found!", index);
+            log_goke(DEBUG_MAX, "===aliyun message block, return 1 when message index = %d is not found!", index);
             return 1;
         }
         if (msg_is_system(msg.message) ||
@@ -763,13 +763,13 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if (aliyun_message_filter(&msg)) {
-        log_goke(DEBUG_VERBOSE, "ALIYUN message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "ALIYUN message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-    log_goke(DEBUG_VERBOSE, "ALIYUN message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "ALIYUN message popped: sender=%s, message=%s, head=%d, tail=%d",
             global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -981,14 +981,14 @@ int server_aliyun_message(message_t *msg) {
     a = a + 1;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "ALIYUN server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "ALIYUN server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message));
         pthread_mutex_unlock(&mutex);
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "ALIYUN message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "ALIYUN message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);

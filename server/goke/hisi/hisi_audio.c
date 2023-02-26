@@ -169,16 +169,16 @@ HI_S32 hisi_inner_audio_codec(audio_config_t *config) {
         return HI_FAILURE;
     }
     //
-    vol_ctrl.vol_ctrl = 10;
-    vol_ctrl.vol_ctrl_mute = 0;
-    if (ioctl(fdAcodec, ACODEC_SET_ADCL_VOL, &vol_ctrl)) {
-        log_goke(DEBUG_WARNING, ": set acodec left channel adc lelvel failed");
-        return HI_FAILURE;
-    }
-    if (ioctl(fdAcodec, ACODEC_SET_ADCR_VOL, &vol_ctrl)) {
-        log_goke(DEBUG_WARNING, ": set acodec right adc lelvel failed");
-        return HI_FAILURE;
-    }
+//    vol_ctrl.vol_ctrl = 10;
+//    vol_ctrl.vol_ctrl_mute = 0;
+//    if (ioctl(fdAcodec, ACODEC_SET_ADCL_VOL, &vol_ctrl)) {
+//        log_goke(DEBUG_WARNING, ": set acodec left channel adc lelvel failed");
+//        return HI_FAILURE;
+//    }
+//    if (ioctl(fdAcodec, ACODEC_SET_ADCR_VOL, &vol_ctrl)) {
+//        log_goke(DEBUG_WARNING, ": set acodec right adc lelvel failed");
+//        return HI_FAILURE;
+//    }
     close(fdAcodec);
     return ret;
 }
@@ -223,6 +223,13 @@ HI_S32 hisi_init_ai(audio_config_t *config) {
     ret = HI_MPI_AI_EnableVqe(config->ai_dev, config->ai_channel);
     if (ret) {
         log_goke(DEBUG_WARNING,": HI_MPI_AI_EnableVqe(%d,%d) failed with %#x", config->ai_dev, config->ai_channel, ret);
+        return ret;
+    }
+    AI_TALKVQE_CONFIG_S talk;
+    memset(&talk, 0, sizeof(talk));
+    ret = HI_MPI_AI_GetTalkVqeAttr(config->ai_dev, config->ai_channel, &talk);
+    if (ret) {
+        log_goke(DEBUG_WARNING,": HI_MPI_AI_GetTalkVqeAttr(%d,%d) failed with %#x", config->ai_dev, i, ret);
         return ret;
     }
     return HI_SUCCESS;

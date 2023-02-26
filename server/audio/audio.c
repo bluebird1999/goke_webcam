@@ -130,7 +130,6 @@ static int get_old_channel(int id, server_type_t type) {
     int i;
     for (i = 0; i < MAX_AV_CHANNEL; i++) {
         if ((channel[i].service_id == id) &&
-            (channel[i].channel_type == type) &&
             (channel[i].status == CHANNEL_VALID)) {
             return i;
         }
@@ -177,6 +176,7 @@ void* aduio_stream_func(void* arg)
     char *data;
     int     number = 0;
     FILE *file = NULL;
+
     //thread preparation
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
@@ -247,19 +247,19 @@ void* aduio_stream_func(void* arg)
                 stream_info.goke_stamp = stream.u64TimeStamp;
                 stream_info.unix_stamp = time_get_now_stamp();
             }
-            //save temp audio file
-//            if( number == 0 ) {
-//                file = fopen("/mnt/sdcard/media/test.pcm","w+");
-//            }
-//            if( number < 400 ) {
-//                fwrite(stream.pStream + 4, stream.u32Len - 4, 1, file);
-//                fflush(file);
-//                number++;
-//            }
-//            else {
-//                fclose(file);
-//            }
-
+#if  0
+            if( number == 0 ) {
+                file = fopen("/mnt/sdcard/media/test.alaw","w+");
+            }
+            if( number < 400 ) {
+                fwrite(stream.pStream + 4, stream.u32Len - 4, 1, file);
+                fflush(file);
+                number++;
+            }
+            else {
+                fclose(file);
+            }
+#endif
             //***write audio info
             avinfo.flag = 0;
             avinfo.frame_index = stream.u32Seq;
@@ -275,7 +275,7 @@ void* aduio_stream_func(void* arg)
                         ret = write_audio_buffer(&avinfo, data, MSG_RECORDER_AUDIO_DATA, SERVER_RECORDER,
                                                  channel[i].service_id);
                         if (ret) {
-                            log_goke(DEBUG_WARNING, "recorder audio send failed! ret = %d", ret);
+                            log_goke(DEBUG_VERBOSE, "recorder audio send failed! ret = %d", ret);
                         }
                     }
                     else if( channel[i].channel_type == SERVER_ALIYUN ) {
@@ -289,8 +289,19 @@ void* aduio_stream_func(void* arg)
                             param.audio.format = LV_AUDIO_FORMAT_G711A;
                             ret = lv_stream_send_media(channel[i].service_id, &param);
                             if (ret) {
-                                log_goke(DEBUG_WARNING, "aliyun audio send failed, ret=%x, service_id = %d", ret,
+                                log_goke(DEBUG_VERBOSE, "aliyun audio send failed, ret=%x, service_id = %d", ret,
                                          channel[i].service_id);
+                                if( channel[i].qos_success != 0 ) {
+                                    int err = avinfo.timestamp - channel[i].qos_success;
+                                    if (err > QOS_MAX_LATENCY) {//
+                                        log_goke(DEBUG_WARNING, " aliyun audio channel sending failed for %d seconds, "
+                                                                "channel closed!", err / 1000);
+                                        channel[i].status = CHANNEL_EMPTY;
+                                    }
+                                }
+                            }
+                            else {
+                                channel[i].qos_success = avinfo.timestamp;
                             }
                         } else {
                             log_goke(DEBUG_INFO, "aliyun audio channel waiting for video stream init, service_id = %d", channel[i].service_id);
@@ -309,8 +320,18 @@ void* aduio_stream_func(void* arg)
                         param.audio.format = LV_AUDIO_FORMAT_G711A;
                         ret = lv_stream_send_media(channel[i].service_id, &param);
                         if (ret) {
-                            log_goke(DEBUG_WARNING, "aliyun audio send failed, ret=%x, service_id = %d", ret,
+                            log_goke(DEBUG_VERBOSE, "aliyun audio send failed, ret=%x, service_id = %d", ret,
                                      channel[i].service_id);
+                            if( channel[i].qos_success != 0 ) {
+                                int err = avinfo.timestamp - channel[i].qos_success;
+                                if (err > QOS_MAX_LATENCY) {//
+                                    log_goke(DEBUG_WARNING, " aliyun audio channel sending failed for %d seconds, "
+                                                            "channel closed!", err / 1000);
+                                    channel[i].status = CHANNEL_EMPTY;
+                                }
+                            }
+                        } else {
+                            channel[i].qos_success = avinfo.timestamp;
                         }
                     }
                 }
@@ -448,6 +469,16 @@ static int audio_init(void)
         return -1;
     }
     running_info.codec_init = 1;
+#if 0
+    AUDIO_SAVE_FILE_INFO_S pstSaveFileInfo;
+    memset(&pstSaveFileInfo, 0, sizeof(pstSaveFileInfo));
+    sprintf(pstSaveFileInfo.aFileName, "ning");
+    sprintf(pstSaveFileInfo.aFilePath, "/mnt/sdcard/media/");
+    pstSaveFileInfo.bCfg = HI_TRUE;
+    pstSaveFileInfo.u32FileSize = 1024;
+    HI_MPI_AI_SaveFile( audio_config.ai_dev, audio_config.ai_channel,
+                        &pstSaveFileInfo);
+#endif
     //init ae
     ret = hisi_init_ae(&audio_config);
     if( ret ) {
@@ -733,18 +764,18 @@ static int audio_message_block(void)
 	message_t msg;
 	//search for unblocked message and swap if necessory
 	if( !info.msg_lock ) {
-		log_goke(DEBUG_VERBOSE, "===audio message block, return 0 when first message is msg_lock=0");
+		log_goke(DEBUG_MAX, "===audio message block, return 0 when first message is msg_lock=0");
 		return 0;
 	}
 	index = 0;
 	msg_init(&msg);
 	ret = msg_buffer_probe_item(&message, index, &msg);
 	if( ret ) {
-		log_goke(DEBUG_VERBOSE, "===audio message block, return 0 when first message is empty");
+		log_goke(DEBUG_MAX, "===audio message block, return 0 when first message is empty");
 		return 0;
 	}
 	if( msg_is_system(msg.message) || msg_is_response(msg.message) ) {
-		log_goke(DEBUG_VERBOSE, "===audio message block, return 0 when first message is system or response message %s",
+		log_goke(DEBUG_MAX, "===audio message block, return 0 when first message is system or response message %s",
                  global_common_message_to_string(msg.message) );
 		return 0;
 	}
@@ -754,7 +785,7 @@ static int audio_message_block(void)
 		msg_init(&msg);
 		ret = msg_buffer_probe_item(&message, index, &msg);
 		if(ret) {
-			log_goke(DEBUG_VERBOSE, "===audio message block, return 1 when message index = %d is not found!", index);
+			log_goke(DEBUG_MAX, "===audio message block, return 1 when message index = %d is not found!", index);
 			return 1;
 		}
 		if( msg_is_system(msg.message) ||
@@ -801,13 +832,13 @@ static int server_message_proc(void)
 	if( ret == 1)
 		return 0;
 	if( audio_message_filter(&msg) ) {
-		log_goke(DEBUG_VERBOSE, "AUDIO message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+		log_goke(DEBUG_MAX, "AUDIO message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
 		return -1;
 	}
-	log_goke(DEBUG_VERBOSE, "AUDIO message popped: sender=%s, message=%s, head=%d, tail=%d",
+	log_goke(DEBUG_MAX, "AUDIO message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
 	/**************************/
@@ -875,7 +906,16 @@ static int server_message_proc(void)
         case MSG_AUDIO_SPEAKER_DATA:
         	if( msg.arg_in.cat == SPEAKER_CTL_INTERCOM_DATA ) {
         		if(msg.arg) {
-					audio_speaker(msg.arg, msg.arg_size, 0);
+                    char *buffer=0;
+                    buffer = malloc( msg.arg_size + 4 );
+                    if(!buffer) {
+                        log_goke( DEBUG_SERIOUS, " malloc failed with size = %d", msg.arg_size + 4);
+                    } else {
+                        memcpy(buffer + 4, msg.arg, msg.arg_size);
+                        hisi_add_audio_header(buffer, msg.arg_size);
+                        audio_speaker(buffer, msg.arg_size + 4, 0);
+                        free(buffer);
+                    }
 				}
 			}
             break;
@@ -1041,6 +1081,7 @@ static void task_proc(void)
                 if (info.task.msg.arg_in.cat == 2) { //intercom
                     channel[id].require_key = 1;
                     channel[id].channel_type = SERVER_AUDIO;
+                    channel[id].qos_success = 0;
                 }
                 pthread_rwlock_unlock(&ilock);
             }
@@ -1211,14 +1252,14 @@ int server_audio_message(message_t *msg)
 	int ret=0;
 	pthread_mutex_lock(&mutex);
 	if( !message.init ) {
-        log_goke(DEBUG_VERBOSE, "AUDIO server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "AUDIO server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message) );
 		pthread_mutex_unlock(&mutex);
 		return -1;
 	}
 	ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "AUDIO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "AUDIO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);

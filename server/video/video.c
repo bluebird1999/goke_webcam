@@ -608,10 +608,6 @@ static int *video_stream_func(void *arg) {
                 avinfo.channel = stream_info.channel ? VIDEO_STREAM_LOW : VIDEO_STREAM_HIGH;
                 avinfo.type = MEDIA_TYPE_VIDEO;
                 avinfo.key_frame = h264_is_iframe(data[4]);
-                //add osd
-//                if (_config_.osd_enable && avinfo.key_frame) {   //only key frame
-//                    video_osd_write_time(stream_info.channel);
-//                }
                 //***iterate for different stream destination
                 for (i = 0; i < MAX_AV_CHANNEL; i++) {
                     if ((channel[i].status == CHANNEL_VALID) &&
@@ -620,8 +616,37 @@ static int *video_stream_func(void *arg) {
                             ret = write_video_buffer(&avinfo, data, MSG_RECORDER_VIDEO_DATA, SERVER_RECORDER,
                                                      channel[i].service_id);
                             if (ret) {
-                                log_goke(DEBUG_WARNING, "recorder video send failed! ret = %d", ret);
+                                log_goke(DEBUG_VERBOSE, "recorder video send failed! ret = %d", ret);
                             }
+#if 0
+                            if( test > 200 ) {
+                                player_init_t player;
+                                //player init
+                                memset(&player, 0, sizeof(player_init_t));
+                                player.start = 1676995200;//1675991766;  //UTC
+                                player.stop = 1677031165;//1676004965;
+                                player.offset = 0;
+                                player.speed = 1;
+                                player.channel_merge = 0;
+                                player.switch_to_live = 1;
+                                player.audio = 1;
+                                player.type = LV_STORAGE_RECORD_PLAN;
+                                player.channel = channel[i].service_id;
+                                //strcpy( player.filename, "/mnt/sdcard/media/normal/20230210050605_20230210051605.mp4");
+                                //send for player server
+                                message_t msg;
+                                msg_init(&msg);
+                                msg.sender = msg.receiver = SERVER_ALIYUN;
+                                msg.message = MSG_PLAYER_REQUEST;
+                                msg.arg_in.duck = msg.arg_pass.duck = STREAM_SOURCE_PLAYER;
+                                msg.arg_in.wolf = msg.arg_pass.wolf = channel[i].service_id;
+                                msg.arg = &player;
+                                msg.arg_size = sizeof(player_init_t);
+                                global_common_send_message( SERVER_PLAYER, &msg);
+                                test = -500000000;
+                            }
+                            test++;
+#endif
                         } else if (channel[i].channel_type == SERVER_ALIYUN) {
                             if ((channel[i].require_key && avinfo.key_frame) ||
                                 !channel[i].require_key) {
@@ -637,43 +662,25 @@ static int *video_stream_func(void *arg) {
                                 param.video.key_frame = avinfo.key_frame;
                                 ret = lv_stream_send_media(channel[i].service_id, &param);
                                 if (ret) {
-                                    log_goke(DEBUG_WARNING, "aliyun video send failed, ret=%x, service_id = %d", ret,
+                                    log_goke(DEBUG_VERBOSE, "aliyun video send failed, ret=%x, service_id = %d", ret,
                                              channel[i].service_id);
                                     if (ret == LV_ERROR_DEFAULT || ret == LV_ERROR_ILLEGAL_INPUT) {
                                         channel[i].status = CHANNEL_EMPTY;
                                         log_goke(DEBUG_WARNING, "aliyun channel closed due to error service_id = %d",
                                                  channel[i].service_id);
                                     }
+                                    if( channel[i].qos_sucess!=0) {
+                                        int err = avinfo.timestamp - channel[i].qos_sucess;
+                                        if (err > QOS_MAX_LATENCY) {//
+                                            log_goke(DEBUG_WARNING,
+                                                     " aliyun audio channel sending failed for %d seconds, "
+                                                     "channel closed!", err / 1000);
+                                            channel[i].status = CHANNEL_EMPTY;
+                                        }
+                                    }
+                                } else {
+                                    channel[i].qos_sucess = avinfo.timestamp;
                                 }
-#if 0
-                                if( test > 200 ) {
-                                    player_init_t player;
-                                    //player init
-                                    memset(&player, 0, sizeof(player_init_t));
-                                    player.start = 0;//1675991766;  //UTC
-                                    player.stop = 0;//1676004965;
-                                    player.offset = 0;
-                                    player.speed = 1;
-                                    player.channel_merge = 0;
-                                    player.switch_to_live = 1;
-                                    player.audio = 1;
-                                    player.type = LV_STORAGE_RECORD_INITIATIVE;
-                                    player.channel = channel[i].service_id;
-                                    strcpy( player.filename, "/mnt/sdcard/media/normal/20230210050605_20230210051605.mp4");
-                                    //send for player server
-                                    message_t msg;
-                                    msg_init(&msg);
-                                    msg.sender = msg.receiver = SERVER_ALIYUN;
-                                    msg.message = MSG_PLAYER_REQUEST;
-                                    msg.arg_in.duck = msg.arg_pass.duck = STREAM_SOURCE_PLAYER;
-                                    msg.arg_in.wolf = msg.arg_pass.wolf = channel[i].service_id;
-                                    msg.arg = &player;
-                                    msg.arg_size = sizeof(player_init_t);
-                                    global_common_send_message( SERVER_PLAYER, &msg);
-                                    test = -500000000;
-                                }
-                                test++;
-#endif
                                 if (channel[i].require_key && !ret) {
                                     channel[i].require_key = 0;
                                 }
@@ -720,13 +727,13 @@ int video_md_trigger_message(void) {
             last_report = now;
             message_t msg;
             /********motion notification********/
-            msg_init(&msg);
-            msg.message = MSG_ALIYUN_EVENT;
-            msg.sender = msg.receiver = SERVER_VIDEO;
-            msg.arg_in.cat = ALIYUN_EVENT_OBJECT_DETECTED;
-            msg.extra = &now;
-            msg.extra_size = sizeof(now);
-            ret = global_common_send_message(SERVER_ALIYUN, &msg);
+//            msg_init(&msg);
+//            msg.message = MSG_ALIYUN_EVENT;
+//            msg.sender = msg.receiver = SERVER_VIDEO;
+//            msg.arg_in.cat = ALIYUN_EVENT_OBJECT_DETECTED;
+//            msg.extra = &now;
+//            msg.extra_size = sizeof(now);
+//            ret = global_common_send_message(SERVER_ALIYUN, &msg);
             /********recorder********/
             msg_init(&msg);
             msg.message = MSG_RECORDER_ADD;
@@ -793,15 +800,10 @@ static void *video_osd_func(void *pArgs) {
     log_goke(DEBUG_INFO, "-----------thread exit: server_osd_func-----------");
 }
 
-static void *video_md_func(void *pArgs) {
+static void *video_md_func(void) {
     HI_S32 ret;
-    md_info_t *pstMd;
-    VIDEO_FRAME_INFO_S stBaseFrmInfo;
     VIDEO_FRAME_INFO_S stExtFrmInfo;
     HI_S32 s32MilliSec = 500000;     //200ms
-    MD_CHN MdChn = 0;
-    VO_LAYER voLayer = 0;
-    VO_CHN voChn = 0;
     HI_BOOL bInstant = HI_TRUE;
     HI_S32 s32CurIdx = 0;
     HI_BOOL bFirstFrm = HI_TRUE;
@@ -815,13 +817,11 @@ static void *video_md_func(void *pArgs) {
     pthread_rwlock_unlock(&ilock);
     global_common_send_dummy(SERVER_VIDEO);
     log_goke(DEBUG_INFO, "-----------thread start: server_md_stream -----------");
-    //thread data init
-    pstMd = (md_info_t *) (&video_config.md);
     //Create chn
-    ret = HI_IVS_MD_CreateChn(MdChn, &(pstMd->md_attr));
+    ret = HI_IVS_MD_CreateChn(video_config.md.md_channel, &video_config.md.md_attr);
     if (HI_SUCCESS != ret) {
         log_goke(DEBUG_WARNING, "HI_IVS_MD_CreateChn fail,Error(%#x)", ret);
-        return NULL;
+        goto EXIT;
     }
     while (1) {
         //status check
@@ -840,20 +840,22 @@ static void *video_md_func(void *pArgs) {
         }
         pthread_rwlock_unlock(&ilock);
 
-        ret = HI_MPI_VPSS_GetChnFrame(video_config.vpss.group, 2, &stExtFrmInfo, s32MilliSec);
+        ret = HI_MPI_VPSS_GetChnFrame(video_config.vpss.group,
+                                      video_config.profile.stream[ID_MD].vpss_chn,
+                                      &stExtFrmInfo, s32MilliSec);
         if (HI_SUCCESS != ret) {
             log_goke(DEBUG_WARNING, "Error(%#x),HI_MPI_VPSS_GetChnFrame failed, VPSS_GRP(%d), 2)",
                      ret, video_config.vpss.group);
             continue;
         }
         if (HI_TRUE != bFirstFrm) {
-            ret = hisi_md_dma_image(&stExtFrmInfo, &pstMd->ast_img[s32CurIdx], bInstant);
+            ret = hisi_md_dma_image(&stExtFrmInfo, &video_config.md.ast_img[s32CurIdx], bInstant);
             if (HI_SUCCESS != ret) {
                 log_goke(DEBUG_WARNING, "SAMPLE_COMM_IVE_DmaImage fail,Error(%#x)", ret);
                 goto EXT_RELEASE;
             }
         } else {
-            ret = hisi_md_dma_image(&stExtFrmInfo, &pstMd->ast_img[0], bInstant);
+            ret = hisi_md_dma_image(&stExtFrmInfo, &video_config.md.ast_img[1 - s32CurIdx], bInstant);
             if (HI_SUCCESS != ret) {
                 log_goke(DEBUG_WARNING, "SAMPLE_COMM_IVE_DmaImage fail,Error(%#x)", ret);
                 goto EXT_RELEASE;
@@ -861,19 +863,21 @@ static void *video_md_func(void *pArgs) {
             bFirstFrm = HI_FALSE;
             goto CHANGE_IDX;//first frame just init reference frame
         }
-        ret = HI_IVS_MD_Process(MdChn, &pstMd->ast_img[s32CurIdx], &pstMd->ast_img[1 - s32CurIdx],
-                                NULL, &pstMd->blob);
+        ret = HI_IVS_MD_Process(video_config.md.md_channel, &video_config.md.ast_img[s32CurIdx],
+                                &video_config.md.ast_img[1 - s32CurIdx],
+                                NULL, &video_config.md.blob);
         if (HI_SUCCESS != ret) {
             log_goke(DEBUG_WARNING, "HI_IVS_MD_Process fail,Error(%#x)", ret);
             goto EXT_RELEASE;
         }
-        ive_blob_to_rect(IVE_CONVERT_64BIT_ADDR(IVE_CCBLOB_S, pstMd->blob.u64VirAddr), &(pstMd->region), IVE_RECT_NUM,
-                         8,
-                         pstMd->md_attr.u32Width, pstMd->md_attr.u32Height, pstMd->md_attr.u32Width,
-                         pstMd->md_attr.u32Height);
+        ive_blob_to_rect(IVE_CONVERT_64BIT_ADDR(IVE_CCBLOB_S, video_config.md.blob.u64VirAddr),
+                         &(video_config.md.region), IVE_RECT_NUM, 8,
+                         video_config.md.md_attr.u32Width, video_config.md.md_attr.u32Height,
+                         video_config.vi.sensor_info.width,
+                         video_config.vi.sensor_info.height);
 
-        if (pstMd->region.u16Num > 8) {//report and recording
-            log_goke(DEBUG_WARNING, "-----motion detected, movement section = %d-----", pstMd->region.u16Num);
+        if (video_config.md.region.u16Num > 3) {//report and recording
+            log_goke(DEBUG_WARNING, "-----motion detected, movement section = %d-----", video_config.md.region.u16Num);
             ret = video_md_trigger_message();
         }
         CHANGE_IDX:
@@ -881,7 +885,9 @@ static void *video_md_func(void *pArgs) {
         s32CurIdx = 1 - s32CurIdx;
 
         EXT_RELEASE:
-        ret = HI_MPI_VPSS_ReleaseChnFrame(video_config.vpss.group, 2, &stExtFrmInfo);
+        ret = HI_MPI_VPSS_ReleaseChnFrame(video_config.vpss.group,
+                                          video_config.profile.stream[ID_MD].vpss_chn,
+                                          &stExtFrmInfo);
         if (HI_SUCCESS != ret) {
             log_goke(DEBUG_WARNING, "Error(%#x),HI_MPI_VPSS_ReleaseChnFrame failed,Grp(%d) chn(2)!",
                      ret, video_config.vpss.group);
@@ -889,10 +895,11 @@ static void *video_md_func(void *pArgs) {
     }
 
     //destroy
-    ret = HI_IVS_MD_DestroyChn(MdChn);
+    ret = HI_IVS_MD_DestroyChn(video_config.md.md_channel);
     if (HI_SUCCESS != ret) {
         log_goke(DEBUG_WARNING, "HI_IVS_MD_DestroyChn fail,Error(%#x)", ret);
     }
+    EXIT:
     pthread_rwlock_wrlock(&ilock);
     misc_clear_bit(&info.thread_start, VIDEO_THREAD_MD);
     pthread_rwlock_unlock(&ilock);
@@ -1046,11 +1053,51 @@ static void video_snap_func(void *arg) {
                             stream.pstPack = NULL;
                             goto CLEAN;
                         } else { //save
+                            int size = 0;
                             for (i = 0; i < stream.u32PackCount; i++) {
                                 fwrite(stream.pstPack[i].pu8Addr + stream.pstPack[i].u32Offset,
                                        stream.pstPack[i].u32Len - stream.pstPack[i].u32Offset, 1, pFile);
-
+                                size += stream.pstPack[i].u32Len - stream.pstPack[i].u32Offset;
                                 fflush(pFile);
+                            }
+                            //post alarm message to cloud
+                            if( ((msg.arg_in.cat == SNAP_TYPE_NORMAL) && (msg.arg_in.dog == LV_STORAGE_RECORD_ALARM) )
+                                || (msg.arg_in.cat == SNAP_TYPE_CLOUD) ) {
+                                lv_intelligent_alarm_param_s param;
+                                int service_id;
+                                lv_device_auth_s auth;
+                                char *image = 0;
+                                char title[]="test";
+                                //copy image data
+                                if( size>0 && size<= 1024*1024 ) {   //1M limits from aliyun
+                                    image = malloc(size);
+                                    if( image ) {
+                                        int pos = 0;
+                                        for (i = 0; i < stream.u32PackCount; i++) {
+                                            memcpy( &image[pos],stream.pstPack[i].pu8Addr + stream.pstPack[i].u32Offset,
+                                                   stream.pstPack[i].u32Len - stream.pstPack[i].u32Offset);
+                                            pos += stream.pstPack[i].u32Len - stream.pstPack[i].u32Offset;
+                                        }
+                                        linkit_get_auth(0, &auth);//这个回调只有主设备才会进入
+                                        memset(&param, 0, sizeof(lv_intelligent_alarm_param_s));
+                                        param.type = LV_INTELLIGENT_EVENT_MOVING_CHECK;
+                                        param.media.p = (char *) image;
+                                        param.media.len = size;
+                                        param.addition_string.p = title;
+                                        param.addition_string.len = strlen(title);
+                                        param.format = LV_MEDIA_JPEG;//该字段目前无效
+                                        lv_post_intelligent_alarm(&auth, &param, &service_id);
+                                        log_goke(DEBUG_INFO, "lv_post_intelligent_alarm, service id = %d\n",
+                                                 service_id);
+                                        if( image ) {
+                                            free(image);
+                                        }
+                                    } else {
+                                        log_goke( DEBUG_SERIOUS, " memory allocation failed in alarm report, size = %d", size);
+                                    }
+                                } else {
+                                    log_goke(DEBUG_WARNING, " alarm image size illegal, size = %d", size);
+                                }
                             }
                             fclose(pFile);
                             log_goke(DEBUG_WARNING, "write jpeg success!");
@@ -1155,12 +1202,25 @@ static int video_set_property(message_t *msg) {
     } else if (msg->arg_in.cat == VIDEO_PROPERTY_MOTION_SENSITIVITY) {
         temp = *((int *) (msg->arg));
         if (temp != _config_.motion_detect_sensitivity) {
-            /*
-             * to to: change the motion detection parameters
-             */
-            log_goke(DEBUG_INFO, "changed the motion detection sensitivity = %d", _config_.motion_detect_sensitivity);
-            _config_.motion_detect_sensitivity = temp;
-            config_set(&_config_);
+            if( info.status == STATUS_RUN ) {
+                MD_ATTR_S attr;
+                ret = HI_IVS_MD_GetChnAttr(video_config.md.md_channel, &attr);
+                if( ret == HI_SUCCESS ) {
+                    attr.u16SadThr = video_config.md.sad_thresh[temp] * (1 << 1);
+                    ret = HI_IVS_MD_SetChnAttr(video_config.md.md_channel, &attr);
+                    if( ret == HI_SUCCESS ) {
+                        log_goke(DEBUG_INFO, "changed the motion detection sensitivity = %d",
+                                 _config_.motion_detect_sensitivity);
+                        _config_.motion_detect_sensitivity = temp;
+                        config_set(&_config_);
+                    }
+                    else {
+                        log_goke( DEBUG_WARNING, " set md attr error with ret = 0x%x", ret);
+                    }
+                } else {
+                    log_goke( DEBUG_WARNING, " get md attr error with ret = 0x%x", ret);
+                }
+            }
         }
         linkkit_sync_property_int(msg->arg_in.wolf, msg->extra, _config_.motion_detect_sensitivity);
     } else if (msg->arg_in.cat == VIDEO_PROPERTY_MOTION_ALARM_INTERVAL) {
@@ -1469,8 +1529,9 @@ static int video_init(void) {
         running_info.region_init = 1;
     }
     //md
-    if (0) {
-        ret = hisi_init_md(&video_config.md,
+    if ( video_config.profile.stream[ID_MD].enable ) {
+        int sad_thresh = video_config.md.sad_thresh[ _config_.motion_detect_sensitivity ] * (1 << 1); //100 * (1 << 2);
+        ret = hisi_init_md(&video_config.md, sad_thresh,
                            video_config.profile.stream[ID_MD].width,
                            video_config.profile.stream[ID_MD].height);
         if (HI_SUCCESS != ret) {
@@ -1594,16 +1655,18 @@ static int video_start(void) {
             }
         }
     }
-    if (0/*!running_info.md_start*/) {
-        //start md thread
-        ret = pthread_create(&running_info.thread_id[VIDEO_THREAD_MD],
-                             NULL, video_md_func, 0);
-        if (ret != 0) {
-            log_goke(DEBUG_SERIOUS, "md thread create error! ret = %d", ret);
-            return ret;
-        } else {
-            log_goke(DEBUG_INFO, "md thread create successful!");
-            running_info.md_start = 1;
+    if ( video_config.profile.stream[ID_MD].enable) {
+        if (!running_info.md_start) {
+            //start md thread
+            ret = pthread_create(&running_info.thread_id[VIDEO_THREAD_MD],
+                                 NULL, video_md_func, 0);
+            if (ret != 0) {
+                log_goke(DEBUG_SERIOUS, "md thread create error! ret = %d", ret);
+                return ret;
+            } else {
+                log_goke(DEBUG_INFO, "md thread create successful!");
+                running_info.md_start = 1;
+            }
         }
     }
     return ret;
@@ -1826,18 +1889,18 @@ static int video_message_block(void) {
     message_t msg;
     //search for unblocked message and swap if necessory
     if (!info.msg_lock) {
-        log_goke(DEBUG_VERBOSE, "===video message block, return 0 when first message is msg_lock=0");
+        log_goke(DEBUG_MAX, "===video message block, return 0 when first message is msg_lock=0");
         return 0;
     }
     index = 0;
     msg_init(&msg);
     ret = msg_buffer_probe_item(&message, index, &msg);
     if (ret) {
-        log_goke(DEBUG_VERBOSE, "===video message block, return 0 when first message is empty");
+        log_goke(DEBUG_MAX, "===video message block, return 0 when first message is empty");
         return 0;
     }
     if (msg_is_system(msg.message) || msg_is_response(msg.message)) {
-        log_goke(DEBUG_VERBOSE, "===video message block, return 0 when first message is system or response message %s",
+        log_goke(DEBUG_MAX, "===video message block, return 0 when first message is system or response message %s",
                  global_common_message_to_string(msg.message));
         return 0;
     }
@@ -1847,7 +1910,7 @@ static int video_message_block(void) {
         msg_init(&msg);
         ret = msg_buffer_probe_item(&message, index, &msg);
         if (ret) {
-            log_goke(DEBUG_VERBOSE, "===video message block, return 1 when message index = %d is not found!", index);
+            log_goke(DEBUG_MAX, "===video message block, return 1 when message index = %d is not found!", index);
             return 1;
         }
         if (msg_is_system(msg.message) ||
@@ -1899,13 +1962,13 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if (video_message_filter(&msg)) {
-        log_goke(DEBUG_VERBOSE, "VIDEO message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "VIDEO message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-    log_goke(DEBUG_VERBOSE, "VIDEO message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "VIDEO message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -2040,6 +2103,7 @@ static void task_proc(void) {
                 if (channel != -1) {
                     channel[id].stream_type = info.task.msg.arg_in.cat;
                     channel[id].require_key = 1;
+                    channel[id].qos_sucess = 0;
                 }
                 pthread_rwlock_unlock(&ilock);
             }
@@ -2252,14 +2316,14 @@ int server_video_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "VIDEO server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "VIDEO server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message));
         pthread_mutex_unlock(&mutex);
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret, message.head, message.tail);
@@ -2276,14 +2340,14 @@ int server_video_snap_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&snap_mutex);
     if ((!snap_buff.init)) {
-        log_goke(DEBUG_VERBOSE, "VIDEO-SNAP ENGINE is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "VIDEO-SNAP ENGINE is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message));
         pthread_mutex_unlock(&snap_mutex);
         return -1;
     }
     ret = msg_buffer_push(&snap_buff, msg);
-    log_goke(DEBUG_VERBOSE, "VIDEO-SNAP message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "VIDEO-SNAP message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret, message.head, message.tail);

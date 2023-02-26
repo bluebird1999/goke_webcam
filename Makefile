@@ -31,11 +31,11 @@ AT :=
 
 #sdk flags
 #SDK_USR_CFLAGS := -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -Wall -fPIC -O2 -fno-aggressive-loop-optimizations -ldl -ffunction-sections -fdata-sections -fstack-protector-strong -std=gnu99 -O0 -Wall -g2 -ggdb
-SDK_USER_CFLAGS := -std=gnu99 -O0 -Wall -g2 -ggdb -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -Wall -fPIC
-SDK_LD_CFLAGS := -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -fno-aggressive-loop-optimizations -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now,-s -ldl -fPIC -std=gnu99 -O0 -Wall -g2 -ggdb 
+SDK_USER_CFLAGS := -std=gnu99 -O0 -Wall -ggdb -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -Wall -fPIC
+SDK_LD_CFLAGS := -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -fno-aggressive-loop-optimizations -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now,-s -ldl -fPIC -std=gnu99 -O0 -Wall -ggdb
 SDK_KER_CFLAGS := 
 
-PORTING_CFLAGS += $(SDK_USR_CFLAGS)
+PORTING_CFLAGS += $(SDK_USER_CFLAGS)
 PORTING_CFLAGS += -DUSER_BIT_32 -DKERNEL_BIT_32 -Wno-date-time -D_GNU_SOURCE
 PORTING_CFLAGS += -DSENSOR0_TYPE=$(SENSOR0_TYPE) -DHI_ACODEC_TYPE_INNER -DHI_VQE_USE_STATIC_MODULE_REGISTER -DHI_AAC_USE_STATIC_MODULE_REGISTER -DHI_AAC_HAVE_SBR_LIB -DCHIPSET=$(CHIPSET)
 PORTING_CFLAGS += -DLINK_VISUAL_ENABLE -DDEVICE_MODEL_GATEWAY -DDM_UNIFIED_SERVICE_POST -DDLL_IOT_EXPORTS -DAWSS_DISABLE_ENROLLEE  -DAWSS_DISABLE_REGISTRAR -DAWSS_SUPPORT_ADHA -DAWSS_SUPPORT_AHA

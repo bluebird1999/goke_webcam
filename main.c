@@ -45,12 +45,18 @@
 int main(int argc, char *argv[]) {
     //config
     config_get(&_config_);
+    manager_apply_debug_config();
     //print
     printf("++++++++++++++++++++++++++++++++++++++++++\r\n");
     printf("   webcam started\r\n");
     printf("---version---\r\n");
     printf(" %s\r\n", APPLICATION_VERSION_STRING);
-    printf(" log level = %d [0(none)-4(verbose)]\r\n", _config_.debug_level);
+#ifdef RELEASE_VERSION
+    printf(" release version \r\n");
+#else
+    printf(" DEBUG version \r\n");
+#endif
+    printf(" log level = %d [0(none)-5(max)]\r\n", _config_.debug_level);
     printf("++++++++++++++++++++++++++++++++++++++++++\r\n");
     manager_init();
 /*

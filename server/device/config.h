@@ -9,7 +9,6 @@
 /*
  * define
  */
-#define 	CONFIG_DEVICE_CONFIG_PATH			"/app/config/device_profile.config"
 
 /*
  * structure

@@ -36,7 +36,7 @@ Thumbs.db
 
 # Object files
 *.o
-*.ko
+#*.ko
 *.obj
 *.elf
 
@@ -50,15 +50,15 @@ Thumbs.db
 *.pch
 
 # Libraries
-*.lib
-*.a
-*.la
-*.lo
+#.lib
+#.a
+.la
+.lo
 
 # Shared objects (inc. Windows DLLs)
 *.dll
-*.so
-*.so.*
+#.so
+#.so.*
 *.dylib
 
 # Executables

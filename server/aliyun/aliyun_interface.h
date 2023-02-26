@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include "../../global/global_interface.h"
 #include "../../server/manager/manager_interface.h"
-
+#include <link_visual_struct.h>
 /*
  * define
  */
@@ -16,6 +16,7 @@
  * structure
  */
 #define     ALIYUN_VISUAL_MAX_CHANNEL               4
+
 
 typedef enum media_type_e {
     MEDIA_TYPE_VIDEO = 0,
@@ -42,5 +43,6 @@ int server_aliyun_start(void);
 int server_aliyun_message(message_t *msg);
 int linkkit_sync_property_int(int iDevid, char *pPropName, int iValue);
 int linkkit_sync_property_string(int iDevid, char *pPropName, char *pValueStr);
+void linkit_get_auth(int dev_id, lv_device_auth_s *auth);
 
 #endif

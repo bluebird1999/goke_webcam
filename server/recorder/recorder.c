@@ -28,7 +28,7 @@
 #include "../device/file_manager.h"
 #include "../../server/goke/goke_interface.h"
 #include "../../server/aliyun/aliyun_interface.h"
-#include "../../server/device/sd_control.h"
+#include "../../server/device/gk_sd.h"
 //server header
 #include "recorder.h"
 #include "recorder_interface.h"
@@ -135,7 +135,7 @@ static int recorder_start_init_recorder_job(void) {
         msg.sender = msg.receiver = SERVER_RECORDER;
         init.video_channel = 0;
         init.mode = RECORDER_MODE_BY_TIME;
-        init.type = LV_STORAGE_RECORD_INITIATIVE;
+        init.type = LV_STORAGE_RECORD_PLAN;
         init.audio = recorder_config.normal_audio;
         memcpy(&(init.start), recorder_config.normal_start, strlen(recorder_config.normal_start));
         memcpy(&(init.stop), recorder_config.normal_end, strlen(recorder_config.normal_end));
@@ -390,6 +390,7 @@ static int recorder_thread_init_mp4v2(recorder_job_t *ctrl) {
     msg_init(&msg);
     msg.sender = msg.receiver = SERVER_RECORDER;
     msg.arg_in.cat = SNAP_TYPE_NORMAL;
+    msg.arg_in.dog = ctrl->init.type;
     msg.arg = fname;
     msg.arg_size = strlen(fname) + 1;
     server_video_snap_message(&msg);
@@ -624,17 +625,38 @@ static int recorder_add_job(message_t *msg) {
     int i = -1;
     int ret = 0;
     pthread_t pid;
+    recorder_init_t init;
     /********message body********/
     msg_init(&send_msg);
     send_msg.message = msg->message | 0x1000;
     send_msg.sender = send_msg.receiver = SERVER_RECORDER;
     /***************************/
     pthread_rwlock_wrlock(&ilock);
-    if (!_config_.recorder_enable || (count_job_number() == MAX_RECORDER_JOB)) {
+    if ( _config_.recorder_enable == ALIYUN_RECORDER_MODE_NONE
+        || (count_job_number() == MAX_RECORDER_JOB)) {
         send_msg.result = -1;
         ret = global_common_send_message(msg->receiver, &send_msg);
         pthread_rwlock_unlock(&ilock);
         return -1;
+    }
+    memcpy(&init, msg->arg, sizeof(recorder_init_t));
+    if( init.type == LV_STORAGE_RECORD_PLAN) {
+        if( (_config_.recorder_enable == ALIYUN_RECORDER_MODE_NONE) ||
+                (_config_.recorder_enable == ALIYUN_RECORDER_MODE_ALARM) ) {
+            send_msg.result = -1;
+            ret = global_common_send_message(msg->receiver, &send_msg);
+            pthread_rwlock_unlock(&ilock);
+            return -1;
+        }
+    }
+    if( init.type == LV_STORAGE_RECORD_ALARM) {
+        if( (_config_.recorder_enable == ALIYUN_RECORDER_MODE_NONE) ||
+            (_config_.recorder_enable == ALIYUN_RECORDER_MODE_PLAN) ) {
+            send_msg.result = -1;
+            ret = global_common_send_message(msg->receiver, &send_msg);
+            pthread_rwlock_unlock(&ilock);
+            return -1;
+        }
     }
     for (i = 0; i < MAX_RECORDER_JOB; i++) {
         if (jobs[i].status == RECORDER_THREAD_NONE) {
@@ -738,13 +760,13 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if( recorder_message_filter(&msg) ) {
-        log_goke(DEBUG_VERBOSE, "RECORDER message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "RECORDER message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-    log_goke(DEBUG_VERBOSE, "RECORDER message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "RECORDER message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -838,7 +860,7 @@ static int server_init(void) {
         msg.arg_in.cat = DEVICE_PARAM_SD_INFO;
         ret = global_common_send_message(SERVER_DEVICE, &msg);
         /***************************/
-		usleep(MESSAGE_RESENT_SLEEP);
+		sleep(1);
 	}
     if( !misc_get_bit( info.init_status, RECORDER_INIT_CONDITION_TIME_SYCHRONIZED)  ) {
         /********message body********/
@@ -847,7 +869,7 @@ static int server_init(void) {
         msg.sender = msg.receiver = SERVER_RECORDER;
         ret = global_common_send_message(SERVER_ALIYUN, &msg);
         /***************************/
-        usleep(MESSAGE_RESENT_SLEEP);
+        sleep(1);
     }
     if (misc_full_bit(info.init_status, RECORDER_INIT_CONDITION_NUM)) {
         info.status = STATUS_WAIT;
@@ -949,8 +971,11 @@ static void state_machine(void) {
             break;
         case STATUS_RUN:
             if( !info.status2 ) {
-                recorder_start_init_recorder_job();
-                info.status2 = 1;
+                if( (_config_.recorder_enable == ALIYUN_RECORDER_MODE_PLAN) ||
+                (_config_.recorder_enable == ALIYUN_RECORDER_MODE_ALL) ) {
+                    recorder_start_init_recorder_job();
+                    info.status2 = 1;
+                }
             }
             break;
         case STATUS_INIT:
@@ -1073,7 +1098,7 @@ int server_recorder_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "RECORDER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "RECORDER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);
@@ -1096,12 +1121,12 @@ int server_recorder_video_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&video_buff[id], msg);
-    log_goke(DEBUG_VERBOSE, "RECORDER_VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "RECORDER_VIDEO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);
     if (ret == MSG_BUFFER_PUSH_FAIL )
-        log_goke(DEBUG_WARNING, "message push in recorder video error =%d", ret);
+        log_goke(DEBUG_VERBOSE, "message push in recorder video error =%d", ret);
     else {
         pthread_cond_signal(&vcond[id]);
     }
@@ -1119,12 +1144,12 @@ int server_recorder_audio_message(message_t *msg) {
         return -1;
     }
     ret = msg_buffer_push(&audio_buff[id], msg);
-    log_goke(DEBUG_VERBOSE, "RECORDER_AUDIO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "RECORDER_AUDIO message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);
     if (ret == MSG_BUFFER_PUSH_FAIL )
-        log_goke(DEBUG_WARNING, "message push in recorder audio error =%d", ret);
+        log_goke(DEBUG_VERBOSE, "message push in recorder audio error =%d", ret);
     else {
         pthread_cond_signal(&vcond[id]);
     }

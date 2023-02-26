@@ -16,6 +16,7 @@ typedef enum global_debug_level_t {
     DEBUG_WARNING,
     DEBUG_INFO,
     DEBUG_VERBOSE,
+    DEBUG_MAX,
 } global_debug_level_t;
 
 #define finename(x) ( strrchr( x, '/' ) ? ( strrchr(x,'/') + 1 ) : x )

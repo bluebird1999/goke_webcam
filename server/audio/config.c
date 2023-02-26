@@ -19,23 +19,30 @@ audio_config_t audio_config = {
         .aio_attr.u32ClkSel = 0,
         .aio_attr.enI2sType = AIO_I2STYPE_INNERCODEC,
         //
-        .vqe_attr.u32OpenMask = AI_TALKVQE_MASK_HPF | AI_TALKVQE_MASK_AGC | AI_TALKVQE_MASK_ANR,
+        .vqe_attr.u32OpenMask = AI_TALKVQE_MASK_AGC | AI_TALKVQE_MASK_ANR | AI_TALKVQE_MASK_AEC,
         .vqe_attr.s32WorkSampleRate    = AUDIO_SAMPLE_RATE_8000,
         .vqe_attr.s32FrameSample       = 480,
         .vqe_attr.enWorkstate          = VQE_WORKSTATE_COMMON,
         .vqe_attr.stAgcCfg.bUsrMode    = HI_TRUE,
         .vqe_attr.stAecCfg.bUsrMode    = HI_FALSE,
         .vqe_attr.stAnrCfg.bUsrMode    = HI_FALSE,
-        .vqe_attr.stHpfCfg.bUsrMode    = HI_TRUE,
+        .vqe_attr.stHpfCfg.bUsrMode    = HI_FALSE,
+
         .vqe_attr.stHpfCfg.enHpfFreq   = AUDIO_HPF_FREQ_150,
+
         .vqe_attr.stAgcCfg.s8TargetLevel = -10,
-        .vqe_attr.stAgcCfg.s8NoiseFloor = -65,
+        .vqe_attr.stAgcCfg.s8NoiseFloor = -35,
         .vqe_attr.stAgcCfg.s8MaxGain = 30,
         .vqe_attr.stAgcCfg.s8AdjustSpeed = 8,
         .vqe_attr.stAgcCfg.s8ImproveSNR = 2,
-        .vqe_attr.stAgcCfg.s8UseHighPassFilt = 2,
+        .vqe_attr.stAgcCfg.s8UseHighPassFilt = 3,
         .vqe_attr.stAgcCfg.s8OutputMode = 1,
-        .vqe_attr.stAgcCfg.s16NoiseSupSwitch = 0,
+        .vqe_attr.stAgcCfg.s16NoiseSupSwitch = 1,
+
+        .vqe_attr.stAnrCfg.s16NrIntensity = 25,
+        .vqe_attr.stAnrCfg.s16NoiseDbThr = 30,
+        .vqe_attr.stAnrCfg.s8SpProSwitch = 0,
+
         //other
         .capture_volume = 30,
         .speaker_volume = 5,

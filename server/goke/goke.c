@@ -233,13 +233,13 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if( goke_message_filter(&msg) ) {
-        log_goke(DEBUG_VERBOSE, "GOKE message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "GOKE message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-    log_goke(DEBUG_VERBOSE, "GOKE message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "GOKE message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -432,14 +432,14 @@ int server_goke_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "GOKE server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "GOKE server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message) );
         pthread_mutex_unlock(&mutex);
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "GOKE message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "GOKE message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);

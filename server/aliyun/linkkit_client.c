@@ -11,19 +11,16 @@
 #include "../../server/recorder/recorder_interface.h"
 #include "../../global/global_interface.h"
 #include "../../server/device/wifi_tools.h"
-#include "../../server/device/sd_control.h"
+#include "../../server/device/gk_sd.h"
 #include "../../server/device/gk_gpio.h"
+#include "../../server/device/gk_motor.h"
+
 //server
 #include "linkkit_client.h"
 #include "aliyun.h"
 #include "aliyun_interface.h"
 #include "config.h"
 
-
-#define ALIYUN_PTZ_UP       2
-#define ALIYUN_PTZ_DOWN     3
-#define ALIYUN_PTZ_LEFT     0
-#define ALIYUN_PTZ_RIGHT    1
 
 int g_master_dev_id = -1;
 static int g_running = 0;
@@ -934,48 +931,6 @@ static iotx_linkkit_dev_meta_info_t *g_master_dev_info = NULL;
 
 extern int iotx_dm_get_triple_by_devid(int devid, char **product_key, char **device_name, char **device_secret);
 
-void pro_PTZActionControl(int type, int step) {
-    message_t msg;
-    msg_init(&msg);
-    //   msg.message = MSG_DEVICE_CTRL_DIRECT;
-
-    if (type == ALIYUN_PTZ_LEFT) {
-//        msg.arg_in.cat = DEVICE_CTRL_MOTOR_HOR_LEFT;
-    } else if (type == ALIYUN_PTZ_RIGHT) {
-        //       msg.arg_in.cat = DEVICE_CTRL_MOTOR_HOR_RIGHT;
-    } else if (type == ALIYUN_PTZ_UP) {
-        //       msg.arg_in.cat = DEVICE_CTRL_MOTOR_VER_UP;
-    } else if (type == ALIYUN_PTZ_DOWN) {
-//        msg.arg_in.cat = DEVICE_CTRL_MOTOR_VER_DOWN;
-    }
-
-//    server_device_message(&msg);
-}
-
-static void GetAuth(int dev_id, lv_device_auth_s *auth) {
-    if (dev_id > 0) {
-        /* 此处请注意：需要使用devid准确查询出实际的三元组 */
-        char *product_key = NULL;
-        char *device_name = NULL;
-        char *device_secret = NULL;
-        iotx_dm_get_triple_by_devid(dev_id, &product_key, &device_name, &device_secret);
-        auth->dev_id = dev_id;
-        auth->product_key = product_key;
-        auth->device_name = device_name;
-        auth->device_secret = device_secret;
-    } else if (dev_id == 0) {
-        /* Notice:这里本应该也使用iotx_dm_get_triple_by_devid进行查询，方便代码统一。
-         * 但此函数查询devid=0时，会丢失掉device_secret数据(有bug)
-         * 此处改为直接使用主设备的三元组信息，不进行查询 */
-        auth->dev_id = dev_id;
-        auth->product_key = g_master_dev_info->product_key;
-        auth->device_name = g_master_dev_info->device_name;
-#ifdef LINKKIT_DYNAMIC_REGISTER
-        HAL_GetDeviceSecret(g_master_dev_info->device_secret);
-#endif
-        auth->device_secret = g_master_dev_info->device_secret;
-    }
-}
 
 int linkkit_message_publish_cb(const lv_message_publish_param_s *param) {
     iotx_mqtt_topic_info_t topic_msg;
@@ -1000,7 +955,7 @@ static int user_connected_event_handler(void) {
     message_t msg;
 
     lv_device_auth_s auth;
-    GetAuth(0, &auth);//这个回调只有主设备才会进入
+    linkit_get_auth(0, &auth);//这个回调只有主设备才会进入
 
     msg_init(&msg);
     //   msg.message = MSG_SPEAKER_WIFI_CONNECT;
@@ -1072,7 +1027,7 @@ static int user_service_request_handler(const int devid, const char *id, const i
     if (link_visual_process) {
         /* ISV将某些服务类消息交由LinkVisual来处理，不需要处理response */
         lv_device_auth_s auth;
-        GetAuth(devid, &auth);
+        linkit_get_auth(devid, &auth);
         lv_message_adapter_param_s in = {0};
         in.type = LV_MESSAGE_ADAPTER_TYPE_TSL_SERVICE;
         in.msg_id = (char *) id;
@@ -1096,7 +1051,6 @@ static int user_service_request_handler(const int devid, const char *id, const i
                 log_goke(DEBUG_WARNING, "JSON Parse Error");
                 return -1;
             }
-
             cJSON *child = cJSON_GetObjectItem(root, "ActionType");
             if (!child) {
                 log_goke(DEBUG_WARNING, "JSON Parse Error");
@@ -1104,7 +1058,6 @@ static int user_service_request_handler(const int devid, const char *id, const i
                 return -1;
             }
             int action_type = child->valueint;
-
             child = cJSON_GetObjectItem(root, "Step");
             if (!child) {
                 log_goke(DEBUG_WARNING, "JSON Parse Error");
@@ -1115,7 +1068,7 @@ static int user_service_request_handler(const int devid, const char *id, const i
 
             cJSON_Delete(root);
             log_goke(DEBUG_WARNING, "PTZActionControl %d %d", action_type, step);
-            pro_PTZActionControl(action_type, step);
+            motor_control(action_type, step);
         } else if (!strncmp(serviceid, FORMATSTORAGEMEDIUM, (serviceid_len > 0) ? serviceid_len : 0)) {
             log_goke(DEBUG_WARNING, "%s", FORMATSTORAGEMEDIUM);
             sd_format();
@@ -1125,12 +1078,6 @@ static int user_service_request_handler(const int devid, const char *id, const i
         } else if (!strncmp(serviceid, REBOOT, (serviceid_len > 0) ? serviceid_len : 0)) {
             log_goke(DEBUG_WARNING, "%s", REBOOT);
             //DeviceSleep();
-            message_t msg;
-            msg.message = MSG_DEVICE_SD_FORMAT_START;
-            msg.sender = msg.receiver = SERVER_ALIYUN;
-            global_common_send_message( SERVER_RECORDER,&msg);
-            global_common_send_message( SERVER_PLAYER,&msg);
-            sd_unmount();
         } else if (!strncmp(serviceid, QUERYRECORDTIMELIST, (serviceid_len > 0) ? serviceid_len : 0)) {
             log_goke(DEBUG_WARNING, "%s", QUERYRECORDTIMELIST);
         } else if (!strncmp(serviceid, QUERYRECORDLIST, (serviceid_len > 0) ? serviceid_len : 0)) {
@@ -1195,7 +1142,7 @@ static int parse_Event_Notify(const cJSON *const root) {
     send_msg.arg_in.chick = 1;
     send_msg.message = MSG_ALIYUN_RESTART;
     global_common_send_message(SERVER_ALIYUN, &send_msg);
-    printf("rescaning qrcode ...\r\n");
+    log_goke(DEBUG_WARNING, "rescaning qrcode ...\r\n");
     return 0;
 }
 
@@ -1269,6 +1216,7 @@ static int user_timestamp_reply_handler(const char *timestamp) {
     tv.tv_sec = (unsigned int) llTimestamp;
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
+//    setenv("TZ", "PST8PDT", 1);
 
     msg_init(&msg);
     msg.message = MSG_ALIYUN_TIME_SYNCHRONIZED;
@@ -1334,7 +1282,7 @@ static int user_link_visual_handler(const int devid, const char *service_id,
     }
     /* 此处请注意：需要使用devid准确查询出实际的三元组 */
     lv_device_auth_s auth;
-    GetAuth(devid, &auth);
+    linkit_get_auth(devid, &auth);
 
     lv_message_adapter_param_s in = {0};
     in.type = LV_MESSAGE_ADAPTER_TYPE_LINK_VISUAL;
@@ -1377,12 +1325,19 @@ int linkkit_client_start(int need_bind) {
     log_goke(DEBUG_WARNING, "linkkit_client_start ...");
     /** 分辨率无法切换根源 **/
     if (is_wifi_start == 0) {
+#ifdef RELEASE_VERSION
         wifi_connect();
+#else
+        log_goke( DEBUG_WARNING, "---wifi connect not available in DEBUG version!---");
+#endif
     }
     ret = 1;
     while (iCount++ < 60) {
 #ifdef RELEASE_VERSION
         ret = wifi_link_ok();
+#else
+        log_goke( DEBUG_WARNING, "---wifi link check not available in DEBUG version!---");
+        ret = 1;
 #endif
         if ( ret ) {
             is_wifi_start = 1;
@@ -1392,6 +1347,7 @@ int linkkit_client_start(int need_bind) {
     }
 
     if (!is_wifi_start) {
+#ifdef RELEASE_VERSION
         memset(cmd, 0, sizeof(cmd));
         snprintf(cmd, sizeof(cmd), "/bin/rm -f %s", WIFI_INFO_CONF);
         ret = system(cmd);
@@ -1405,8 +1361,12 @@ int linkkit_client_start(int need_bind) {
         send_msg.arg_in.chick = 1;
         send_msg.message = MSG_ALIYUN_SETUP;
         global_common_send_message(SERVER_ALIYUN, &send_msg);
-        printf("rescaning qrcode ...\r\n");
+        log_goke(DEBUG_WARNING, "rescaning qrcode ...\r\n");
+#else
+        log_goke( DEBUG_WARNING, "---wifi rescan not available in DEBUG version!---");
+#endif
     } else {
+#ifdef RELEASE_VERSION
         if( need_bind ) {
             memset(cmd, 0, sizeof(cmd));
             snprintf(cmd, sizeof(cmd), "/usr/sbin/wpa_cli -i wlan0 save_config");
@@ -1414,6 +1374,9 @@ int linkkit_client_start(int need_bind) {
             ret = system(cmd);
             usleep(100000);
         }
+#else
+        log_goke( DEBUG_WARNING, "---wpa conf save not available in DEBUG version!---");
+#endif
     }
 
     if (is_wifi_start) {
@@ -1443,7 +1406,9 @@ int linkkit_init_client(const char *product_key,
     g_running = 1;
 
     /* 设置调试的日志级别 */
-    if( _config_.debug_level == DEBUG_VERBOSE) {
+    if( _config_.debug_level == DEBUG_MAX) {
+        aliyun_config.linkkit_debug_level = IOT_LOG_DEBUG;
+    } else if( _config_.debug_level == DEBUG_VERBOSE) {
         aliyun_config.linkkit_debug_level = IOT_LOG_DEBUG;
     } else if( _config_.debug_level == DEBUG_INFO) {
         aliyun_config.linkkit_debug_level = IOT_LOG_INFO;
@@ -1529,4 +1494,30 @@ void linkkit_client_destroy(void) {
 
 void aliyun_time_sync(void) {
     IOT_Linkkit_Query(g_master_dev_id, ITM_MSG_QUERY_TIMESTAMP, NULL, 0);
+}
+
+
+void linkit_get_auth(int dev_id, lv_device_auth_s *auth) {
+    if (dev_id > 0) {
+        /* 此处请注意：需要使用devid准确查询出实际的三元组 */
+        char *product_key = NULL;
+        char *device_name = NULL;
+        char *device_secret = NULL;
+        iotx_dm_get_triple_by_devid(dev_id, &product_key, &device_name, &device_secret);
+        auth->dev_id = dev_id;
+        auth->product_key = product_key;
+        auth->device_name = device_name;
+        auth->device_secret = device_secret;
+    } else if (dev_id == 0) {
+        /* Notice:这里本应该也使用iotx_dm_get_triple_by_devid进行查询，方便代码统一。
+         * 但此函数查询devid=0时，会丢失掉device_secret数据(有bug)
+         * 此处改为直接使用主设备的三元组信息，不进行查询 */
+        auth->dev_id = dev_id;
+        auth->product_key = g_master_dev_info->product_key;
+        auth->device_name = g_master_dev_info->device_name;
+#ifdef LINKKIT_DYNAMIC_REGISTER
+        HAL_GetDeviceSecret(g_master_dev_info->device_secret);
+#endif
+        auth->device_secret = g_master_dev_info->device_secret;
+    }
 }

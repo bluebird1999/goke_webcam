@@ -346,7 +346,7 @@ static int server_message_proc(void)
 	if( ret == 1 ) {
 		return 0;
 	}
-    log_goke(DEBUG_VERBOSE, "MANAGER message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "MANAGER message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
 	msg_init(&info.task.msg);
@@ -412,8 +412,8 @@ static int server_message_proc(void)
 			}
 			break;
 		case MSG_MANAGER_HEARTBEAT:
-			log_goke(DEBUG_VERBOSE, "---heartbeat---at:%d",time_get_now_stamp());
-			log_goke(DEBUG_VERBOSE, "---from: %d---status: %d---thread: %d---init: %d", msg.sender, msg.arg_in.cat, msg.arg_in.dog, msg.arg_in.duck);
+			log_goke(DEBUG_MAX, "---heartbeat---at:%d",time_get_now_stamp());
+			log_goke(DEBUG_MAX, "---from: %d---status: %d---thread: %d---init: %d", msg.sender, msg.arg_in.cat, msg.arg_in.dog, msg.arg_in.duck);
 			break;
 		case MSG_MANAGER_PROPERTY_GET:
 			manager_get_property(&msg);
@@ -852,7 +852,7 @@ int manager_message(message_t *msg)
 	int ret=0;
 	pthread_mutex_lock(&mutex);
 	ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "MANAGER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "MANAGER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);
@@ -863,4 +863,26 @@ int manager_message(message_t *msg)
 	}
 	pthread_mutex_unlock(&mutex);
 	return ret;
+}
+
+void manager_apply_debug_config(void) {
+    if( _config_.debug_switch) {
+        audio_config.vqe_attr.u32OpenMask = _config_.debug[0];
+        audio_config.vqe_attr.stAnrCfg.bUsrMode = _config_.debug[1];
+        audio_config.vqe_attr.stAnrCfg.s16NoiseDbThr = _config_.debug[2];
+        audio_config.vqe_attr.stAnrCfg.s16NrIntensity = _config_.debug[3];
+        audio_config.vqe_attr.stAnrCfg.s8SpProSwitch = _config_.debug[4];
+        audio_config.vqe_attr.stAgcCfg.bUsrMode = _config_.debug[5];
+        audio_config.vqe_attr.stAgcCfg.s8NoiseFloor = _config_.debug[6];
+        audio_config.vqe_attr.stAgcCfg.s8TargetLevel = _config_.debug[7];
+        audio_config.vqe_attr.stAgcCfg.s8MaxGain = _config_.debug[8];
+        audio_config.vqe_attr.stAgcCfg.s8ImproveSNR = _config_.debug[9];
+        audio_config.vqe_attr.stAgcCfg.s8AdjustSpeed = _config_.debug[10];
+        audio_config.vqe_attr.stAgcCfg.s16NoiseSupSwitch = _config_.debug[11];
+        audio_config.vqe_attr.stAgcCfg.s8OutputMode = _config_.debug[12];
+        audio_config.vqe_attr.stAgcCfg.s8UseHighPassFilt = _config_.debug[13];
+        audio_config.vqe_attr.stAecCfg.bUsrMode = _config_.debug[14];
+        audio_config.vqe_attr.stHpfCfg.bUsrMode = _config_.debug[15];
+        audio_config.vqe_attr.stHpfCfg.enHpfFreq = _config_.debug[16];
+    }
 }

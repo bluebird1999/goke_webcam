@@ -12,7 +12,7 @@
 #include "../../common/tools_interface.h"
 #include "../manager/config.h"
 #include "../manager/manager_interface.h"
-#include "sd_control.h"
+#include "gk_sd.h"
 #include "file_manager.h"
 
 
@@ -22,7 +22,7 @@ static int init = 0;
 
 static int file_manager_file_bisearch_start(int type, long long key) {
     int low = 0, mid, high = flist[type].num - 1;
-    if (flist[type].start[0] > key) return -1;
+    if (flist[type].start[0] > key) return 0;
     while (low <= high) {
         mid = (low + high) / 2;
         if (key < flist[type].start[mid]) {
@@ -639,7 +639,7 @@ int file_manager_clean_disk(void)
                         memset(name, 0, sizeof(name));
                         sprintf(name, "%s%s", path, namelist[index]->d_name);
                         remove( name );
-                        log_goke(DEBUG_VERBOSE, "---removed %s---", name);
+                        log_goke(DEBUG_MAX, "---removed %s---", name);
                         deleted++;
                     }
                 }

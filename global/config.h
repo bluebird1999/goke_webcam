@@ -4,7 +4,7 @@
 #include <iot_export.h>
 #include "../../server/goke/hisi/hisi_common.h"
 
-#define CONFIG_PATH         "./webcam.config"
+#define CONFIG_PATH         "/app/bin/webcam.config"
 
 #define 			        MAX_SYSTEM_STRING_SIZE 		64
 #define						MAX_DEVINFO_SIZE			128
@@ -55,7 +55,9 @@ typedef struct config_t {
     unsigned char image_correct;
     char device_name[32];
     unsigned char debug_level;
-    AI_TALKVQE_CONFIG_S         vqe_attr;
+    char time_zone;
+    unsigned char debug_switch;
+    int debug[20];
 } config_t;
 
 

@@ -281,16 +281,14 @@ typedef struct region_info_t {
     region_layer_info_t overlay[MAX_OSD_OVERLAY];
 } region_info_t;
 
-typedef struct md_info_t {
+typedef struct md_config_t {
     IVE_SRC_IMAGE_S     ast_img[IVE_MD_IMG_NUM];
     IVE_DST_MEM_INFO_S  blob;
     MD_ATTR_S           md_attr;
     rect_array_t        region;
-} md_info_t;
-
-typedef struct md_config_t {
     int                 sad_thresh[6];
     int                 alarm_interval[3];
+    int                 md_channel;
 } md_config_t;
 
 typedef struct video_config_t {

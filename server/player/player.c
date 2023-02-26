@@ -22,7 +22,7 @@
 #include "../../server/recorder/recorder_interface.h"
 #include "../../server/device/device_interface.h"
 #include "../device/file_manager.h"
-#include "../../server/device/sd_control.h"
+#include "../../server/device/gk_sd.h"
 //server header
 #include "player.h"
 #include "config.h"
@@ -176,7 +176,7 @@ static int player_get_video_frame(player_init_t *init, player_run_t *run, int sp
             param.video.key_frame = 1;
             ret = lv_stream_send_media(init->channel, &param);
             if (ret) {
-                log_goke(DEBUG_WARNING, "aliyun player video send failed, ret=%x, service_id = %d", ret,
+                log_goke(DEBUG_VERBOSE, "aliyun player video send failed, ret=%x, service_id = %d", ret,
                          init->channel);
             }
             if( mdata ) {
@@ -209,7 +209,7 @@ static int player_get_video_frame(player_init_t *init, player_run_t *run, int sp
             param.video.key_frame = 0;
             ret = lv_stream_send_media(init->channel, &param);
             if (ret) {
-                log_goke(DEBUG_WARNING, "aliyun player video send failed, ret=%x, service_id = %d", ret,
+                log_goke(DEBUG_VERBOSE, "aliyun player video send failed, ret=%x, service_id = %d", ret,
                          init->channel);
             }
             if( data ) {
@@ -282,7 +282,7 @@ static int player_get_audio_frame(player_init_t *init, player_run_t *run, int sp
         param.audio.format = LV_AUDIO_FORMAT_G711A;
         ret = lv_stream_send_media(init->channel, &param);
         if( ret) {
-            log_goke(DEBUG_WARNING, "aliyun player audio send failed, ret=%x, service_id = %d", ret,
+            log_goke(DEBUG_VERBOSE, "aliyun player audio send failed, ret=%x, service_id = %d", ret,
                      init->channel);
         }
         if (data) {
@@ -513,6 +513,7 @@ static int player_add_job(message_t *msg) {
         }
     } else {
         if (file_manager_check_file_list(init->type, init->start, init->stop)) {
+            log_goke( DEBUG_WARNING, "not finding valid vod files!!!!!!!!!!!!!!!!!!!!!!!");
             pthread_rwlock_unlock(&ilock);
             return -1;
         }
@@ -802,6 +803,7 @@ static int *player_func(void *arg) {
                 pthread_rwlock_wrlock(&ilock);
                 jobs[tid].exit = 1;
                 pthread_rwlock_unlock(&ilock);
+                send_finish = 1;
                 break;
             case PLAYER_THREAD_ERROR:
                 log_goke(DEBUG_SERIOUS, "error within thread = %d", tid);
@@ -818,6 +820,11 @@ static int *player_func(void *arg) {
         MP4Close(run.mp4_file, 0);
         run.mp4_file = NULL;
         log_goke(DEBUG_INFO, "------closed file=======%s", run.file_path);
+    }
+    if( send_finish ) {
+        //***send out aliyun vod finish cmd
+        int ret = lv_stream_send_cmd(init.channel, LV_STORAGE_RECORD_COMPLETE);
+        log_goke( DEBUG_INFO, " vod file player finished with ret = %d", ret);
     }
     //***restart live stream if required
     if( 0 ) {
@@ -905,13 +912,13 @@ static int server_message_proc(void) {
     if (ret == 1)
         return 0;
     if( player_message_filter(&msg) ) {
-        log_goke(DEBUG_VERBOSE, "PLAYER message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "PLAYER message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
-    log_goke(DEBUG_VERBOSE, "PLAYER message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "PLAYER message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -1035,7 +1042,7 @@ static int server_init(void) {
         msg.arg_in.cat = DEVICE_PARAM_SD_INFO;
         ret = global_common_send_message(SERVER_DEVICE, &msg);
         /***************************/
-        usleep(MESSAGE_RESENT_SLEEP);
+        sleep(1);
     }
     if (!misc_get_bit(info.init_status, PLAYER_INIT_CONDITION_TIME_SYCHRONIZED)) {
         /********message body********/
@@ -1044,7 +1051,7 @@ static int server_init(void) {
         msg.sender = msg.receiver = SERVER_PLAYER;
         ret = global_common_send_message(SERVER_ALIYUN, &msg);
         /***************************/
-        usleep(MESSAGE_RESENT_SLEEP);
+        sleep(1);
     }
     if (misc_full_bit(info.init_status, PLAYER_INIT_CONDITION_NUM)) {
         info.status = STATUS_WAIT;
@@ -1232,14 +1239,14 @@ int server_player_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "PLAYER server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "PLAYER server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message) );
         pthread_mutex_unlock(&mutex);
         return -1;
     }
     ret = msg_buffer_push(&message, msg);
-    log_goke(DEBUG_VERBOSE, "PLAYER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "PLAYER message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);

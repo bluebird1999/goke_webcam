@@ -17,6 +17,7 @@
 #define		MAX_AUDIO_FRAME_SIZE		2*1024
 #define		MAX_VIDEO_FRAME_SIZE		128*1024
 
+#define     QOS_MAX_LATENCY             10*1000 //10s
 /*
  * structure
  */

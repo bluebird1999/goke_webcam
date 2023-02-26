@@ -31,8 +31,9 @@
 #include "config.h"
 #include "device_interface.h"
 #include "file_manager.h"
-#include "sd_control.h"
+#include "gk_sd.h"
 #include "gk_gpio.h"
+#include "gk_motor.h"
 #include "../../common/ntpc.h"
 
 /*
@@ -119,7 +120,7 @@ static int *sd_func(void *arg) {
             break;
         }
         pthread_rwlock_unlock(&ilock);
-        if( sd_proc(&ilock) )
+        if( sd_proc() )
             break;
     }
     //release
@@ -128,6 +129,44 @@ static int *sd_func(void *arg) {
     pthread_rwlock_unlock(&ilock);
     global_common_send_dummy(SERVER_DEVICE);
     log_goke(DEBUG_INFO, "-----------thread exit: server_sd-----------");
+    pthread_exit(0);
+}
+
+static int *motor_func(void *arg) {
+    int ret;
+    //thread preparation
+    signal(SIGINT, server_thread_termination);
+    signal(SIGTERM, server_thread_termination);
+    pthread_detach(pthread_self());
+    misc_set_thread_name("server_device_motor");
+    pthread_rwlock_wrlock(&ilock);
+    misc_set_bit(&info.thread_start, DEVICE_THREAD_MOTOR);
+    pthread_rwlock_unlock(&ilock);
+    global_common_send_dummy(SERVER_DEVICE);
+    log_goke(DEBUG_INFO, "-----------thread start: server_motor-----------");
+    ret = motor_init();
+    if( ret ) {
+        log_goke(DEBUG_INFO, " motor init failed!");
+    }
+    while (1) {
+        //status check
+        pthread_rwlock_rdlock(&ilock);
+        if (info.exit ||
+            misc_get_bit(info.thread_exit, DEVICE_THREAD_MOTOR)) {
+            pthread_rwlock_unlock(&ilock);
+            break;
+        }
+        pthread_rwlock_unlock(&ilock);
+        if( motor_proc() )
+            break;
+    }
+    //release
+    motor_uninit();
+    pthread_rwlock_wrlock(&ilock);
+    misc_clear_bit(&info.thread_start, DEVICE_THREAD_MOTOR);
+    pthread_rwlock_unlock(&ilock);
+    global_common_send_dummy(SERVER_DEVICE);
+    log_goke(DEBUG_INFO, "-----------thread exit: server_device_motor-----------");
     pthread_exit(0);
 }
 
@@ -158,7 +197,7 @@ static int *hotplug_func(void *arg) {
     int socket_fd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
     if (socket_fd == -1) {
         perror("socket");
-        goto REALEASE;
+        goto RELEASE;
     }
 
     struct timeval tv_timeout;
@@ -171,7 +210,7 @@ static int *hotplug_func(void *arg) {
     if (ret < 0) {
         perror("bind");
         close(socket_fd);
-        goto REALEASE;
+        goto RELEASE;
     }
 
     while (1) {
@@ -220,7 +259,7 @@ static int *hotplug_func(void *arg) {
         }
     }
     close(socket_fd);
-    REALEASE:
+    RELEASE:
     //release
     pthread_rwlock_wrlock(&ilock);
     misc_clear_bit(&info.thread_start, DEVICE_THREAD_HOTPLUG);
@@ -265,6 +304,7 @@ static void device_check_reset(void) {
 			log_goke(DEBUG_SERIOUS,"Reset iCounts:%d",iCounts);
 			if(iCounts >= 10)
 			{
+#ifdef RELEASE_VERSION
 				memset(cmd,0,sizeof(cmd));
 				snprintf(cmd,sizeof(cmd),"/bin/rm -f %s",WIFI_INFO_CONF);
 				fp = popen(cmd,"r");
@@ -297,6 +337,9 @@ static void device_check_reset(void) {
 				}
 				usleep(200000);
 				reboot(0x1234567);
+#else
+                log_goke( DEBUG_WARNING, "---reboot not available in DEBUG version!---");
+#endif
 			}
 		}
 		else
@@ -353,14 +396,14 @@ static int server_message_proc(void) {
     if( ret == 1)
         return 0;
     if( device_message_filter(&msg) ) {
-        log_goke(DEBUG_VERBOSE, "DEVICE message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
+        log_goke(DEBUG_MAX, "DEVICE message filtered: sender=%s, message=%s, head=%d, tail=%d was screened",
                  global_common_get_server_name(msg.sender),
                  global_common_message_to_string(msg.message), message.head, message.tail);
         msg_free(&msg);
         return -1;
     }
 	if(MSG_MANAGER_TIMER_ON != msg.message)
-    log_goke(DEBUG_VERBOSE, "DEVICE message popped: sender=%s, message=%s, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "DEVICE message popped: sender=%s, message=%s, head=%d, tail=%d",
              global_common_get_server_name(msg.sender),
              global_common_message_to_string(msg.message), message.head, message.tail);
     switch (msg.message) {
@@ -457,7 +500,13 @@ static int server_setup(void) {
         log_goke(DEBUG_SERIOUS, "hotplug thread create error! ret = %d", ret);
         return ret;
     }
-
+    //start motor thread
+    ret = pthread_create(&pid, NULL, motor_func, 0);
+    if (ret != 0) {
+        log_goke(DEBUG_SERIOUS, "motor thread create error! ret = %d", ret);
+        return ret;
+    }
+    //gpio
 	gk_gpio_init();
     //ircut
     if(_config_.day_night_mode == 0) {//0:白天
@@ -482,6 +531,7 @@ static int server_setup(void) {
         gk_led1_on();   //red
         gk_led2_off();  //green
     }
+    //reset
 	msg_init(&msg);
     msg.message = MSG_MANAGER_TIMER_ADD;
     msg.sender = SERVER_DEVICE;
@@ -655,7 +705,7 @@ int server_device_message(message_t *msg) {
     int ret = 0;
     pthread_mutex_lock(&mutex);
     if (!message.init) {
-        log_goke(DEBUG_VERBOSE, "DEVICE server is not ready: sender=%s, message=%s",
+        log_goke(DEBUG_MAX, "DEVICE server is not ready: sender=%s, message=%s",
                  global_common_get_server_name(msg->sender),
                  global_common_message_to_string(msg->message) );
         pthread_mutex_unlock(&mutex);
@@ -663,7 +713,7 @@ int server_device_message(message_t *msg) {
     }
     ret = msg_buffer_push(&message, msg);
 	if(MSG_MANAGER_TIMER_ON != msg->message)
-    log_goke(DEBUG_VERBOSE, "DEVICE message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
+    log_goke(DEBUG_MAX, "DEVICE message insert: sender=%s, message=%s, ret=%d, head=%d, tail=%d",
              global_common_get_server_name(msg->sender),
              global_common_message_to_string(msg->message),
              ret,message.head, message.tail);

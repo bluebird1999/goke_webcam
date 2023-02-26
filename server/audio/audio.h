@@ -63,6 +63,7 @@ typedef struct audio_channel_t {
     server_type_t           channel_type;
     int                     service_id;
     bool                    require_key;
+    int                     qos_success;
 } audio_channel_t;
 /*
  * function
