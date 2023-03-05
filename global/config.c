@@ -56,8 +56,9 @@ static config_map_t config_profile_map[] = {
         {"led_enable",                &(config.led_enable),                          cfg_u8,     "1",                        0, 1,},
         {"image_correct",             &(config.image_correct),                       cfg_u8,     "1",                        0, 1,},
         {"device_name",               &(config.device_name),                         cfg_string, "",                         0, 32,},
+        {"smd_enable",               &(config.smd_enable),                         cfg_u8,     "1",                        0, 1},
         {"debug_level",               &(config.debug_level),                         cfg_u8,     "2",                        0, 8},
-        {"time_zone",                   &(config.time_zone),                         cfg_u8,     "8",                        -12, 12},
+        {"time_zone",                   &(config.time_zone),                         cfg_u8,     "0",                        0, 23},
         {"debug_switch",                   &(config.debug_switch),                         cfg_s8,     "0",                        0, 1},
         {"debug00",                 &(config.debug[0]),                         cfg_s32,     "0",                        -1000000, 1000000},
         {"debug01",                 &(config.debug[1]),                         cfg_s32,     "0",                        -1000000, 1000000},
@@ -79,10 +80,6 @@ static config_map_t config_profile_map[] = {
         {"debug17",                 &(config.debug[17]),                         cfg_s32,     "0",                        -1000000, 1000000},
         {"debug18",                 &(config.debug[18]),                         cfg_s32,     "0",                        -1000000, 1000000},
         {"debug19",                 &(config.debug[19]),                         cfg_s32,     "0",                        -1000000, 1000000},
-
-
-
-
 
         {NULL,},
 };

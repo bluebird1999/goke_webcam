@@ -10,7 +10,7 @@
 /*
  * define
  */
-#define				APPLICATION_VERSION_STRING	"alpha-3.0"
+#define				APPLICATION_VERSION_STRING	"alpha-4.0"
 
 #define             RELEASE_VERSION              1
 
@@ -234,6 +234,7 @@ typedef enum message_type_t {
  */
 extern  config_t	_config_;
 extern  long long   _universal_tag_;
+extern  int         _reset_;
 
 int global_common_send_message(int receiver, message_t *msg);
 void global_common_send_dummy(int server);

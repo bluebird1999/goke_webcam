@@ -29,6 +29,12 @@
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  */
+unsigned long long time_get_now(void) {
+    long ts;
+    ts = time(NULL);
+    return ts;
+}
+
 unsigned long long time_get_now_ms(void)
 {
     struct timeval tv;

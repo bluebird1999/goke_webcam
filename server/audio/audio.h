@@ -22,6 +22,8 @@ typedef enum audio_init_condition_e {
 #define AUDIO_SCAN_SUCCESS			"/misc/audio/scan_success.alaw"
 #define AUDIO_BINDING_SUCCESS       "/misc/audio/binding_success.alaw"
 #define AUDIO_START                 "/misc/audio/start.alaw"
+#define AUDIO_REBOOT                "/misc/audio/scan_success.alaw"
+#define AUDIO_RESET                 "/misc/audio/scan_success.alaw"
 
 /*
  * structure

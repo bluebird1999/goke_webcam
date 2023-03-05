@@ -307,19 +307,14 @@ static int player_open_mp4(player_init_t *init, player_run_t *run, file_list_nod
     unsigned char **pps_header = NULL;
     unsigned int *sps_size = NULL;
     unsigned int *pps_size = NULL;
-    char start_str[MAX_SYSTEM_STRING_SIZE], stop_str[MAX_SYSTEM_STRING_SIZE];
     if (run->current == NULL)
         run->current = fhead;
     else
         run->current = run->current->next;
     if (run->mp4_file == NULL) {
         memset(run->file_path, 0, sizeof(run->file_path));
-        memset(start_str, 0, sizeof(start_str));
-        memset(stop_str, 0, sizeof(stop_str));
-        time_stamp_to_date_with_zone(run->current->start, start_str, 80, manager_config.timezone);
-        time_stamp_to_date_with_zone(run->current->stop, stop_str, 80, manager_config.timezone);
-        sprintf(run->file_path, "%s%s/%s_%s.mp4", manager_config.media_directory,
-                manager_config.folder_prefix[init->type], start_str, stop_str);
+        sprintf(run->file_path, "%s%s/%d_%d.mp4", manager_config.media_directory,
+                manager_config.folder_prefix[init->type], run->current->start, run->current->stop);
     } else
         return 0;
     run->mp4_file = MP4Read(run->file_path);
@@ -702,11 +697,11 @@ static int *player_func(void *arg) {
     signal(SIGTERM, server_thread_termination);
     tid = init.tid;
     misc_set_bit(&info.thread_start, tid);
-    sprintf(fname, "%d%d-%d", tid, init.channel, time_get_now_stamp());
+    sprintf(fname, "%d%d-%d", tid, init.channel, time_get_now());
     misc_set_thread_name(fname);
     pthread_rwlock_unlock(&ilock);
     log_goke(DEBUG_INFO, "------------add new player----------------");
-    log_goke(DEBUG_INFO, "now=%lld", time_get_now_stamp());
+    log_goke(DEBUG_INFO, "now=%lld", time_get_now());
     log_goke(DEBUG_INFO, "start=%lld", init.start);
     log_goke(DEBUG_INFO, "end=%lld", init.stop);
     log_goke(DEBUG_INFO, "--------------------------------------------------");

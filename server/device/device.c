@@ -302,9 +302,10 @@ static void device_check_reset(void) {
 		{
 			iCounts++;
 			log_goke(DEBUG_SERIOUS,"Reset iCounts:%d",iCounts);
-			if(iCounts >= 10)
+			if(iCounts >= 5)
 			{
 #ifdef RELEASE_VERSION
+                //remove network configuration file
 				memset(cmd,0,sizeof(cmd));
 				snprintf(cmd,sizeof(cmd),"/bin/rm -f %s",WIFI_INFO_CONF);
 				fp = popen(cmd,"r");
@@ -312,7 +313,6 @@ static void device_check_reset(void) {
 				{
 					pclose(fp);
 				}
-				
 				memset(cmd,0,sizeof(cmd));
 				snprintf(cmd,sizeof(cmd),"/bin/rm -f %s",WPA_SUPPLICANT_CONF_NAME);
 				fp = popen(cmd,"r");
@@ -320,7 +320,6 @@ static void device_check_reset(void) {
 				{
 					pclose(fp);
 				}
-				
 				memset(cmd,0,sizeof(cmd));
 				snprintf(cmd,sizeof(cmd),"/bin/cp -f %s %s",WPA_SUPPLICANT_CONF_BAK_NAME,WPA_SUPPLICANT_CONF_NAME);
 				fp = popen(cmd,"r");
@@ -328,6 +327,30 @@ static void device_check_reset(void) {
 				{
 					pclose(fp);
 				}
+                //remove webcam configuration file
+ 				memset(cmd,0,sizeof(cmd));
+				snprintf(cmd,sizeof(cmd),"/bin/rm -f %s", APPLICATION_CONFIG_FILE);
+				fp = popen(cmd,"r");
+				if(fp)
+				{
+					pclose(fp);
+				}
+                //remove and renew localtime file
+                memset(cmd,0,sizeof(cmd));
+                snprintf(cmd,sizeof(cmd),"/bin/rm -f %s", DEVICE_TIMEZONE_FILE);
+                fp = popen(cmd,"r");
+                if(fp)
+                {
+                    pclose(fp);
+                }
+                memset(cmd,0,sizeof(cmd));
+                snprintf(cmd,sizeof(cmd),"/bin/cp -f %sGMT %s", DEVICE_TIMEZONE_PATH, DEVICE_TIMEZONE_FILE);
+                fp = popen(cmd,"r");
+                if(fp)
+                {
+                    pclose(fp);
+                }
+                //sync
 				memset(cmd,0,sizeof(cmd));
 				snprintf(cmd,sizeof(cmd),"/bin/sync");
 				fp = popen(cmd,"r");
@@ -335,8 +358,17 @@ static void device_check_reset(void) {
 				{
 					pclose(fp);
 				}
-				usleep(200000);
-				reboot(0x1234567);
+                log_goke( DEBUG_WARNING, "---start quitting the webcam and safely reboot!---");
+                /****************************/
+                message_t send_msg;
+                msg_init(&send_msg);
+                send_msg.message = MSG_AUDIO_PLAY_SOUND;
+                send_msg.arg_in.cat = AUDIO_RESOURCE_RESET;
+                global_common_send_message(SERVER_AUDIO, &send_msg);
+                /****************************/
+                sleep(2);
+                server_thread_termination();
+                _reset_ = 1;
 #else
                 log_goke( DEBUG_WARNING, "---reboot not available in DEBUG version!---");
 #endif
@@ -724,4 +756,52 @@ int server_device_message(message_t *msg) {
     }
     pthread_mutex_unlock(&mutex);
     return ret;
+}
+
+int device_set_timezone(int zone) {
+    char cmd[256],zonefile[64];
+    int ret = -1;
+    if( (zone <0 ) || zone > 23 ) {
+        return -1;
+    }
+    memset(cmd, 0, sizeof(cmd));
+    memset(zonefile, 0, sizeof(zonefile));
+    if( zone == 0 ) {
+        snprintf( zonefile, sizeof(zonefile), "%sGMT", DEVICE_TIMEZONE_PATH);
+    } else if( (zone <= 12) && (zone > 0 ) ) {
+        snprintf( zonefile, sizeof(zonefile), "%sGMT-%d", DEVICE_TIMEZONE_PATH, zone);
+    } else if( (zone > 12) && (zone <24) ) {
+        int temp = 24 - zone;
+        snprintf( zonefile, sizeof(zonefile), "%sGMT+%d", DEVICE_TIMEZONE_PATH, temp);
+    }
+    snprintf( cmd, sizeof(cmd), "rm %s;cp -rf %s %s", DEVICE_TIMEZONE_FILE,
+              zonefile, DEVICE_TIMEZONE_FILE);
+#ifdef RELEASE_VERSION
+    log_goke( DEBUG_WARNING, " set timezone cmd = %s", cmd);
+    ret = system(cmd);
+#else
+    log_goke( DEBUG_WARNING, " set timezone not available in DEBUG version!");
+#endif
+    if( ret == 0 ) {
+        _config_.time_zone = zone;
+        config_set(&_config_);  //save
+        log_goke(DEBUG_WARNING, "changed the time zone = %d", _config_.time_zone);
+    } else {
+        log_goke( DEBUG_WARNING, " change timezone failed!");
+    }
+    return ret;
+}
+
+int device_reboot(void) {
+    /****************************/
+    message_t send_msg;
+    msg_init(&send_msg);
+    send_msg.message = MSG_AUDIO_PLAY_SOUND;
+    send_msg.arg_in.cat = AUDIO_RESOURCE_REBOOT;
+    global_common_send_message(SERVER_AUDIO, &send_msg);
+    /****************************/
+    sleep(2);
+    server_thread_termination();
+    _reset_ = 1;
+    return 0;
 }

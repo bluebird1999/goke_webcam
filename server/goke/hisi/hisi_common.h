@@ -21,6 +21,10 @@
 #include "hi_comm_vgs.h"
 #include "hi_comm_ive.h"
 #include "ivs_md.h"
+#include "hi_ivp.h"
+#include "hi_securec.h"
+#include "hi_type.h"
+#include "hi_common.h"
 
 #include "mpi_sys.h"
 #include "mpi_vb.h"

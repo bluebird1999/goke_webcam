@@ -350,7 +350,7 @@ int wifi_connect(void) {
     }
     log_goke(DEBUG_INFO, "awss_connect:\r");
     log_goke(DEBUG_INFO, "ssid = %s\r", ssid);
-    log_goke(DEBUG_WARNING, "passwd = %s\r", passwd);
+    log_goke(DEBUG_INFO, "passwd = %s\r", passwd);
     log_goke(DEBUG_INFO, "bssid: ");
     for (int i = 0; i < sizeof(bssid) / 2; i++) {
         log_goke(DEBUG_INFO, "0x%02x ", bssid[i] & 0xff);
@@ -607,6 +607,38 @@ static int aliyun_send_player_finish(message_t *msg) {
     return ret;
 }
 
+static int aliyun_restart(void) {
+    char cmd[256];
+    int ret;
+    log_goke(DEBUG_WARNING,"server_restart");
+    linkkit_client_destroy();
+
+    if( need_bind ) {
+    //rescan logic
+    #ifdef RELEASE_VERSION
+        memset(cmd, 0, sizeof(cmd));
+        snprintf(cmd, sizeof(cmd), "/bin/rm -f %s", WIFI_INFO_CONF);
+        ret = system(cmd);
+
+        memset(cmd, 0, sizeof(cmd));
+        snprintf(cmd, sizeof(cmd), "/bin/rm -f %s", WIFI_INFO_CONF_TEMP);
+        ret = system(cmd);
+
+        memset(cmd, 0, sizeof(cmd));
+        snprintf(cmd, sizeof(cmd), "cp -f %s %s", WPA_SUPPLICANT_CONF_BAK_NAME, WPA_SUPPLICANT_CONF_NAME);
+        system(cmd);
+        usleep(100000);
+
+        log_goke(DEBUG_WARNING, "rescaning qrcode ...\r\n");
+    #else
+        log_goke( DEBUG_WARNING, "---wifi rescan not available in DEBUG version!---");
+    #endif
+        need_bind = 0;
+    }
+    info.status = STATUS_SETUP;
+    return 0;
+}
+
 /*
  *
  * stream function
@@ -641,8 +673,7 @@ static int server_init(void) {
 static int server_setup(void) {
     //init_product();
     message_t msg;
-    if(aliyun_get_uuid() != 0)
-    {
+    if(aliyun_get_uuid() != 0) {
 		info.status = STATUS_WAIT; //继续等待setup
     	return 0;
 	}
@@ -656,32 +687,31 @@ static int server_setup(void) {
 
 static int server_start(void) {
     int ret;
+    static int retry = 0;
     ret = linkkit_client_start(need_bind);
     if (ret >= 0) {
         info.status = STATUS_RUN;
         aliyun_yield();
     } else {
-        printf("linkkit_client_start failed sleep 5s continue...\r");
+        log_goke(DEBUG_WARNING,"linkkit_client_start failed sleep 5s continue...\r");
         sleep(5);
-//        retry++;
-//        if(retry > 4) {
-//            retry = 0;
-//            linkkit_client_restart();
-//        }
+        retry++;
+        if(retry > 4) {
+            retry = 0;
+            aliyun_restart();
+        } else {
+            message_t send_msg;
+            msg_init(&send_msg);
+            send_msg.sender = send_msg.receiver = SERVER_ALIYUN;
+            send_msg.message = MSG_MANAGER_DUMMY;
+            global_common_send_message( SERVER_ALIYUN, &send_msg);
+        }
     }
     return 0;
 }
 
 static int server_stop(void) {
 	log_goke(DEBUG_INFO,"server_stop");
-    return 0;
-}
-
-static int server_restart(void) {
-	log_goke(DEBUG_INFO,"server_restart");
-	//linkvisual_client_stop();
-	linkkit_client_destroy();
-	info.status = STATUS_SETUP;
     return 0;
 }
 
@@ -786,6 +816,9 @@ static int server_message_proc(void) {
             break;
         case MSG_ALIYUN_EVENT:
             aliyun_event_processor(&msg);
+            break;
+        case MSG_ALIYUN_RESTART:
+            aliyun_restart();
             break;
         case MSG_VIDEO_START_ACK:
         case MSG_VIDEO_STOP_ACK:

@@ -189,4 +189,6 @@ video_config_t video_config = {
         .isp.bSlowShutter = 1,
         .isp.max_fps_cfg[0] = 30,
         .isp.max_fps_cfg[1] = 30,
+
+        .od.thresh_value = 0.60,
 };

@@ -163,7 +163,11 @@ static HI_VOID hisi_init_vb(video_config_t *config) {
             blk_size = ALIGN_UP(config->profile.stream[ID_HIGH].width *
                              config->profile.stream[ID_HIGH].height * 3 / 2, 64);
             config->vb.astCommPool[count].u64BlkSize = blk_size;
-            config->vb.astCommPool[count].u32BlkCnt = 3;
+            if( _config_.smd_enable ) {
+                config->vb.astCommPool[count].u32BlkCnt = 3;
+            } else {
+                config->vb.astCommPool[count].u32BlkCnt = 3;
+            }
         }
         count++;
 //        //osd
@@ -212,7 +216,7 @@ static HI_VOID hisi_init_vb(video_config_t *config) {
         blk_size = ALIGN_UP(config->profile.stream[ID_MD].width *
                             config->profile.stream[ID_MD].height * 3 / 2, 64);
         config->vb.astCommPool[count].u64BlkSize = blk_size;
-        config->vb.astCommPool[count].u32BlkCnt = 6;
+        config->vb.astCommPool[count].u32BlkCnt = 3;
         count++;
     }
     config->vb.u32MaxPoolCnt = count;

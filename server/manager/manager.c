@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/reboot.h>
 //program header
 #include "../device/device_interface.h"
 #include "../goke/goke_interface.h"
@@ -842,8 +843,13 @@ int manager_proc(void)
 	}
 	else {
 		server_release_3();
-		log_goke(DEBUG_INFO, "-----------main exit-----------");
-		exit(0);
+        if( _reset_ ) {
+            log_goke(DEBUG_WARNING, "---reboot----------------------");
+            reboot(0x1234567);
+            usleep(200000);
+        }
+        log_goke(DEBUG_INFO, "-----------main exit-----------");
+        exit(0);
 	}
 }
 

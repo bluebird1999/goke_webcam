@@ -291,6 +291,10 @@ typedef struct md_config_t {
     int                 md_channel;
 } md_config_t;
 
+typedef struct od_config_t {
+    double              thresh_value;
+} od_config_t;
+
 typedef struct video_config_t {
     video_profile_info_t        profile;
     vi_info_t                   vi;
@@ -299,7 +303,8 @@ typedef struct video_config_t {
     venc_info_t                 venc;
     region_info_t               region;
     md_config_t                 md;
-    isp_config_t                isp
+    isp_config_t                isp;
+    od_config_t                 od;
 } video_config_t;
 
 /*

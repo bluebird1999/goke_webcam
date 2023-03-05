@@ -810,6 +810,45 @@ int Ali_GetDeviceName(int devid, char *pData, char *pCmd) {
     return 0;
 }
 
+int Ali_SetDeviceTimeZone(int devid, char *pData, char *pCmd) {
+    cJSON *root = NULL;
+    cJSON *item = NULL;
+    int ret;
+    log_goke(DEBUG_WARNING, "Data:%s", pData);
+    root = cJSON_Parse(pData);
+    if (root) {
+        item = cJSON_GetObjectItem(root, pCmd);
+        if (item && cJSON_IsNumber(item)) {
+            if( _config_.time_zone != item->valueint) {
+                ret = device_set_timezone(item->valueint);
+            }
+            if(!ret) {
+                linkkit_sync_property_int(devid, pCmd, item->valueint);
+            } else {
+                linkkit_sync_property_int(devid, pCmd, _config_.time_zone);
+            }
+        }
+        cJSON_Delete(root);
+    }
+    return 0;
+}
+
+int Ali_GetDeviceTimeZone(int devid, char *pData, char *pCmd) {
+    cJSON *root = NULL;
+    cJSON *item = NULL;
+    sd_info_t stSdCardInfo;
+    log_goke(DEBUG_WARNING, "Data:%s", pData);
+    root = cJSON_Parse(pData);
+    if (root) {
+        item = cJSON_GetObjectItem(root, pCmd);
+        if (item && cJSON_IsNumber(item)) {
+            linkkit_sync_property_int(devid, pCmd, _config_.time_zone);
+        }
+        cJSON_Delete(root);
+    }
+    return 0;
+}
+
 stAliCmd gAliCmdMap[] =
         {
                 {E_ALI_PROPERTY_STREAM_VIDEO_QUALITY,       "StreamVideoQuality",       Ali_SetStreamVideoQuality,      Ali_GetStreamVideoQuality},
@@ -833,6 +872,7 @@ stAliCmd gAliCmdMap[] =
                 {E_ALI_PROPERTY_STORAGERECORDMODE,          "StorageRecordMode",        Ali_SetStorageRecordMode,       Ali_GetStorageRecordMode},
                 {E_ALI_PROPERTY_IMAGECORRECT,               "ImageCorrect",             Ali_SetImageCorrect,            Ali_GetImageCorrect},
                 {E_ALI_PROPERTY_DEVICENAME,                 "DeviceName",               Ali_SetDeviceName,              Ali_GetDeviceName},
+                {E_ALI_PROPERTY_DEVICETIMEZONE,                 "DeviceTimeZone",               Ali_SetDeviceTimeZone,              Ali_GetDeviceTimeZone},
         };
 
 int Ali_GetWifiConf(stAliWifiConf *pstConf) {
@@ -919,6 +959,7 @@ int Ali_ReportProperty(int iDevid) {
     cJSON_AddNumberToObject(pRoot, gAliCmdMap[E_ALI_PROPERTY_STORAGERECORDMODE].strCmd, _config_.recorder_enable);
     cJSON_AddNumberToObject(pRoot, gAliCmdMap[E_ALI_PROPERTY_IMAGECORRECT].strCmd, _config_.image_correct);
     cJSON_AddStringToObject(pRoot, gAliCmdMap[E_ALI_PROPERTY_DEVICENAME].strCmd, _config_.device_name);
+    cJSON_AddNumberToObject(pRoot, gAliCmdMap[E_ALI_PROPERTY_DEVICETIMEZONE].strCmd, _config_.time_zone);
     pReportInfo = cJSON_Print(pRoot);
     IOT_Linkkit_Report(iDevid, ITM_MSG_POST_PROPERTY,
                        (unsigned char *) pReportInfo, strlen(pReportInfo));
@@ -1077,11 +1118,9 @@ static int user_service_request_handler(const int devid, const char *id, const i
             sd_unmount();
         } else if (!strncmp(serviceid, REBOOT, (serviceid_len > 0) ? serviceid_len : 0)) {
             log_goke(DEBUG_WARNING, "%s", REBOOT);
-            //DeviceSleep();
-        } else if (!strncmp(serviceid, QUERYRECORDTIMELIST, (serviceid_len > 0) ? serviceid_len : 0)) {
-            log_goke(DEBUG_WARNING, "%s", QUERYRECORDTIMELIST);
-        } else if (!strncmp(serviceid, QUERYRECORDLIST, (serviceid_len > 0) ? serviceid_len : 0)) {
-            log_goke(DEBUG_WARNING, "%s", QUERYRECORDLIST);
+            device_reboot();
+        } else {
+            log_goke(DEBUG_WARNING, "unknown linkkit service id = %s", serviceid);
         }
     }
 
@@ -1126,23 +1165,13 @@ static int parse_Event_Notify(const cJSON *const root) {
         cJSON_free(json_item_str);
         return -1;
     }
-
     log_goke(DEBUG_WARNING, "operation unbind");
-    memset(cmd, 0, sizeof(cmd));
-    snprintf(cmd, sizeof(cmd), "rm -f %s", WIFI_INFO_CONF);
-    system(cmd);
-    usleep(100000);
-    memset(cmd, 0, sizeof(cmd));
-    snprintf(cmd, sizeof(cmd), "cp -f %s %s", WPA_SUPPLICANT_CONF_BAK_NAME, WPA_SUPPLICANT_CONF_NAME);
-    system(cmd);
-    usleep(100000);
+
     message_t send_msg;
     msg_init(&send_msg);
     send_msg.sender = send_msg.receiver = SERVER_ALIYUN;
-    send_msg.arg_in.chick = 1;
     send_msg.message = MSG_ALIYUN_RESTART;
     global_common_send_message(SERVER_ALIYUN, &send_msg);
-    log_goke(DEBUG_WARNING, "rescaning qrcode ...\r\n");
     return 0;
 }
 
@@ -1216,7 +1245,6 @@ static int user_timestamp_reply_handler(const char *timestamp) {
     tv.tv_sec = (unsigned int) llTimestamp;
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
-//    setenv("TZ", "PST8PDT", 1);
 
     msg_init(&msg);
     msg.message = MSG_ALIYUN_TIME_SYNCHRONIZED;
@@ -1310,76 +1338,48 @@ static void linkkit_client_set_property_handler(const char *key, const char *val
     IOT_Linkkit_Report(0, ITM_MSG_POST_PROPERTY, (unsigned char *) result, strlen(result));
 }
 
-int linkkit_client_restart(void) {
-    IOT_Linkkit_Close(g_master_dev_id);
-    log_goke(DEBUG_WARNING, "close network setting restart");
-    return 0;
-}
-
 int linkkit_client_start(int need_bind) {
     FILE *fp = NULL;
-    int iCount = 0;
     message_t send_msg;
     char cmd[256];
     int ret = 0;
     log_goke(DEBUG_WARNING, "linkkit_client_start ...");
-    /** 分辨率无法切换根源 **/
+
+    //check wifi connection
     if (is_wifi_start == 0) {
-#ifdef RELEASE_VERSION
-        wifi_connect();
-#else
-        log_goke( DEBUG_WARNING, "---wifi connect not available in DEBUG version!---");
-#endif
-    }
-    ret = 1;
-    while (iCount++ < 60) {
 #ifdef RELEASE_VERSION
         ret = wifi_link_ok();
 #else
         log_goke( DEBUG_WARNING, "---wifi link check not available in DEBUG version!---");
         ret = 1;
 #endif
-        if ( ret ) {
+        if (ret) {
             is_wifi_start = 1;
-            break;
+        } else {
+#ifdef RELEASE_VERSION
+            wifi_connect();
+            ret = wifi_link_ok();   //try again once
+            if(ret) {
+                is_wifi_start = 1;
+            }
+#else
+            log_goke( DEBUG_WARNING, "---wifi connect not available in DEBUG version!---");
+#endif
         }
-        sleep(1);
     }
 
-    if (!is_wifi_start) {
-#ifdef RELEASE_VERSION
-        memset(cmd, 0, sizeof(cmd));
-        snprintf(cmd, sizeof(cmd), "/bin/rm -f %s", WIFI_INFO_CONF);
-        ret = system(cmd);
-
-        memset(cmd, 0, sizeof(cmd));
-        snprintf(cmd, sizeof(cmd), "/bin/rm -f %s", WIFI_INFO_CONF_TEMP);
-        ret = system(cmd);
-
-        msg_init(&send_msg);
-        send_msg.sender = send_msg.receiver = SERVER_ALIYUN;
-        send_msg.arg_in.chick = 1;
-        send_msg.message = MSG_ALIYUN_SETUP;
-        global_common_send_message(SERVER_ALIYUN, &send_msg);
-        log_goke(DEBUG_WARNING, "rescaning qrcode ...\r\n");
-#else
-        log_goke( DEBUG_WARNING, "---wifi rescan not available in DEBUG version!---");
-#endif
-    } else {
+    if (is_wifi_start) {
 #ifdef RELEASE_VERSION
         if( need_bind ) {
             memset(cmd, 0, sizeof(cmd));
             snprintf(cmd, sizeof(cmd), "/usr/sbin/wpa_cli -i wlan0 save_config");
-            //ning
+//ning
             ret = system(cmd);
             usleep(100000);
         }
 #else
         log_goke( DEBUG_WARNING, "---wpa conf save not available in DEBUG version!---");
 #endif
-    }
-
-    if (is_wifi_start) {
         /* 连接到服务器 */
         if (is_iot_start == 0) {
             ret = IOT_Linkkit_Connect(g_master_dev_id);

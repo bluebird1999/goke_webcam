@@ -310,19 +310,20 @@ static void query_storage_record_cb(const lv_device_auth_s *auth, const lv_query
     return;
 }
 
-static int trigger_pic_capture_cb(const char *trigger_id)
+static trigger_picture_cb(const lv_device_auth_s *auth, const lv_trigger_picture_param_s *param)
 {
     char fname[MAX_SYSTEM_STRING_SIZE * 2];
-    log_goke(DEBUG_WARNING,"trigger_id:%s", trigger_id);
+    log_goke(DEBUG_WARNING,"trigger picture service id:%d", param->service_id);
     message_t msg;
     memset(fname, 0, sizeof(fname));
-    sprintf(fname, "%s%s/ss-%s.jpg", manager_config.media_directory,
-            manager_config.folder_prefix[LV_STORAGE_RECORD_INITIATIVE], trigger_id);
+    sprintf(fname, "%s%s/ss-%d.jpg", manager_config.media_directory,
+            manager_config.folder_prefix[LV_STORAGE_RECORD_INITIATIVE], param->service_id);
     /**********************************************/
     /**********************************************/
     msg_init(&msg);
     msg.sender = msg.receiver = SERVER_ALIYUN;
     msg.arg_in.cat = SNAP_TYPE_CLOUD;
+    msg.arg_in.wolf = param->service_id;
     msg.arg = fname;
     msg.arg_size = strlen(fname) + 1;
     server_video_snap_message(&msg);
@@ -421,7 +422,7 @@ int linkvisual_init_client(void)
     callback.on_push_streaming_data_cb = on_push_streaming_data_cb;
     //获取存储录像录像列表
     callback.query_storage_record_cb = query_storage_record_cb;
-    callback.trigger_picture_cb = trigger_pic_capture_cb;
+    callback.trigger_picture_cb = trigger_picture_cb;
     /* 云端事件通知 */
     callback.cloud_event_cb = cloud_event_cb;
     callback.feature_check_cb = feature_check_cb;

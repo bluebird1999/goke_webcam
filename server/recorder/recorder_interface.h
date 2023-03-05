@@ -41,6 +41,7 @@ typedef enum {
 
 typedef struct recorder_init_t {
 	int		type;
+    int     sub_type;
 	int		mode;
 	int		repeat;
 	int		repeat_interval;

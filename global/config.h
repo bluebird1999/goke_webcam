@@ -54,8 +54,9 @@ typedef struct config_t {
     unsigned char led_enable;
     unsigned char image_correct;
     char device_name[32];
+    unsigned char smd_enable;
     unsigned char debug_level;
-    char time_zone;
+    unsigned char time_zone;
     unsigned char debug_switch;
     int debug[20];
 } config_t;

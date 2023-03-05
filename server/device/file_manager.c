@@ -125,14 +125,15 @@ int file_manager_search_file(char *fname, int timezone, file_list_node_t **fhead
         return -1;
     }
     //search for start and stop
+    char *pend;
     memset( name, 0, sizeof(name));
-    memcpy( name, pos, 14);
-    pos += 14;
+    memcpy( name, pos, 10);
+    pos += 10;
     pos += 1;
-    start = time_date_to_stamp_with_zone(name, 80, timezone);
+    start = strtoll(name, &pend, 10 );
     memset( name, 0, sizeof(name));
-    memcpy( name, pos, 14);
-    stop = time_date_to_stamp_with_zone(name, 80, timezone);
+    memcpy( name, pos, 10);
+    stop = strtoll(name, &pend, 10 );
 
     ret = file_manager_node_insert(fhead, start, stop);
     return ret;
@@ -283,17 +284,18 @@ int file_manager_read_file_list(int timezone) {
             }
             if (strstr(namelist[index]->d_name, ".jpg"))
                 goto EXIT;
-            p = strstr(namelist[index]->d_name, "202");    //first
+            p = strstr(namelist[index]->d_name, "1");    //first
             if (p == NULL)
                 goto EXIT;
+            char *pend;
             memset(name, 0, sizeof(name));
-            memcpy(name, p, 14);
+            memcpy(name, p, 10);
             long long int st, ed;
-            st = time_date_to_stamp_with_zone(name, 80, timezone);
-            p += 15;
+            st = strtoll( name, &pend, 10);
+            p += 11;
             memset(name, 0, sizeof(name));
-            memcpy(name, p, 14);
-            ed = time_date_to_stamp_with_zone(name, 80, timezone);
+            memcpy(name, p, 10);
+            ed = strtoll( name, &pend, 10);
             if (st >= ed) {
                 memset(name, 0, sizeof(name));
                 sprintf(name, "%s%s", this_path, namelist[index]->d_name);
@@ -324,8 +326,6 @@ int file_manager_get_file_by_day(int type, int number, unsigned long long sr_sta
     lv_query_record_response_day *list;
     unsigned int len = 0, num = 0;
     int start,end;
-    char start_txt[MAX_SYSTEM_STRING_SIZE];
-    char stop_txt[MAX_SYSTEM_STRING_SIZE];
     char fname[MAX_SYSTEM_STRING_SIZE];
 
     pthread_rwlock_rdlock(&ilock);
@@ -363,13 +363,9 @@ int file_manager_get_file_by_day(int type, int number, unsigned long long sr_sta
                         continue;
                     if (flist[j].stop[i] > sr_stop)
                         continue;
-                    memset(start_txt, 0, sizeof(start_txt));
-                    memset(stop_txt, 0, sizeof(stop_txt));
                     memset(fname, 0, sizeof(fname));
-                    time_stamp_to_date_with_zone(flist[j].start[i], start_txt, 80, manager_config.timezone);
-                    time_stamp_to_date_with_zone(flist[j].stop[i], stop_txt, 80, manager_config.timezone);
-                    sprintf(fname, "%s%s/%s_%s.mp4", manager_config.media_directory,
-                            manager_config.folder_prefix[j], start_txt, stop_txt);
+                    sprintf(fname, "%s%s/%lld_%lld.mp4", manager_config.media_directory,
+                            manager_config.folder_prefix[j], flist[j].start[i], flist[j].stop[i]);
                     list[index].file_name = malloc(strlen(fname) + 1);
                     if (list[index].file_name == 0) {
                         log_goke(DEBUG_SERIOUS, " memroy allocation error!");
@@ -583,17 +579,17 @@ int file_manager_clean_disk(void)
     int		i = 0, j = 0;
     int		deleted = 0;
     pthread_rwlock_wrlock(&ilock);
-    now = time_get_now_stamp();
+    now = time_get_now();
     block_time = 0;
     memset(thisdate, 0, sizeof(thisdate));
     time_stamp_to_date_with_zone(now, thisdate, 80, manager_config.timezone);
-    log_goke(DEBUG_INFO, "----------current time is UTC+8 %s-------", thisdate);
+    log_goke(DEBUG_INFO, "----------current time is %s-------", thisdate);
     restart:
     log_goke(DEBUG_INFO, "----------start sd cleanning job-------");
     cutoff_date = now - 1 * 86400 + block_time;
     memset(thisdate, 0, sizeof(thisdate));
     time_stamp_to_date_with_zone(cutoff_date, thisdate, 80, manager_config.timezone);
-    log_goke(DEBUG_INFO, "----------delete media file before UTC+8 %s-------", thisdate);
+    log_goke(DEBUG_INFO, "----------delete media file before %s-------", thisdate);
     for( j=0; j<= LV_STORAGE_RECORD_INITIATIVE;j++) {
         memset(path, 0, sizeof(path));
         log_goke(DEBUG_INFO, "----------inside %s directory-------", manager_config.folder_prefix[j]);
@@ -629,11 +625,12 @@ int file_manager_clean_disk(void)
                     goto exit;
                 }
                 p = NULL;
-                p = strstr( namelist[index]->d_name, "202");	//first
+                p = strstr( namelist[index]->d_name, "1");	//first
                 if(p){
+                    char *pend;
                     memset(name, 0, sizeof(name));
-                    memcpy(name, p, 14);
-                    start = time_date_to_stamp_with_zone( name, 80, manager_config.timezone );
+                    memcpy(name, p, 10);
+                    start = strtoll( name, &pend, 10);
                     if( start < cutoff_date) {
                         //remove
                         memset(name, 0, sizeof(name));

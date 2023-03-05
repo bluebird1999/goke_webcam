@@ -126,16 +126,19 @@ int misc_str_hex_2_hex(unsigned char *dst, char *src, int src_len) {
 int misc_get_file_size(char *file_name) {
     int ret;
     FILE *fp;
-
+    int size = 0;
     fp = fopen(file_name, "r+");
     if (fp == NULL) {
-        return 0;
+        return -1;
     }
 
     fseek(fp, 0, SEEK_END);
-    ret = ftell(fp);
-
+    size = ftell(fp);
+    ret = fseek(fp, 0L, SEEK_SET);
+    if (ret == -1) {
+        fclose(fp);
+        return -1;
+    }
     fclose(fp);
-
-    return ret;
+    return size;
 }

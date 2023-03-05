@@ -41,6 +41,8 @@ typedef enum audio_resource_type_e {
     AUDIO_RESOURCE_SCAN_SUCCESS,
     AUDIO_RESOURCE_BINDING_SUCCESS,
     AUDIO_RESOURCE_START,
+    AUDIO_RESOURCE_REBOOT,
+    AUDIO_RESOURCE_RESET,
     AUDIO_RESOURCE_BUTT,
 } audio_resource_type_e;
 

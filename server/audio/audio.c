@@ -131,7 +131,11 @@ static int get_old_channel(int id, server_type_t type) {
     for (i = 0; i < MAX_AV_CHANNEL; i++) {
         if ((channel[i].service_id == id) &&
             (channel[i].status == CHANNEL_VALID)) {
-            return i;
+            if( channel[i].channel_type == SERVER_AUDIO ) {
+                return i;
+            } else if ( channel[i].channel_type == type) {
+                return i;
+            }
         }
     }
     return -1;
@@ -287,6 +291,7 @@ void* aduio_stream_func(void* arg)
                             param.common.len = avinfo.size;
                             param.common.timestamp_ms = avinfo.timestamp;
                             param.audio.format = LV_AUDIO_FORMAT_G711A;
+                            log_goke( DEBUG_MAX, "audio+++goke=%lld now=%lld actual=%d+++", stream.u64TimeStamp, time_get_now_ms(),avinfo.timestamp);
                             ret = lv_stream_send_media(channel[i].service_id, &param);
                             if (ret) {
                                 log_goke(DEBUG_VERBOSE, "aliyun audio send failed, ret=%x, service_id = %d", ret,
@@ -442,6 +447,12 @@ static int audio_play(int type)
             break;
         case AUDIO_RESOURCE_START:
             play_audio_file( AUDIO_START );
+            break;
+        case AUDIO_RESOURCE_REBOOT:
+            play_audio_file( AUDIO_REBOOT );
+            break;
+        case AUDIO_RESOURCE_RESET:
+            play_audio_file( AUDIO_RESET );
             break;
     }
     return ret;
@@ -1071,7 +1082,7 @@ static void task_proc(void)
             msg_init(&msg);
             memcpy(&(msg.arg_pass), &(info.task.msg.arg_pass), sizeof(message_arg_t));
             msg.message = info.task.msg.message | 0x1000;
-            msg.sender = msg.receiver = SERVER_VIDEO;
+            msg.sender = msg.receiver = SERVER_AUDIO;
             msg.result = (finished == TASK_FINISH_SUCCESS) ? 0: -1;
             /***************************/
             if (msg.result == 0) {
@@ -1114,7 +1125,7 @@ static void task_proc(void)
             msg_init(&msg);
             memcpy(&(msg.arg_pass), &(info.task.msg.arg_pass),sizeof(message_arg_t));
             msg.message = info.task.msg.message | 0x1000;
-            msg.sender = msg.receiver = SERVER_VIDEO;
+            msg.sender = msg.receiver = SERVER_AUDIO;
             msg.result = (finished == TASK_FINISH_SUCCESS) ? 0: -1;
             global_common_send_message(info.task.msg.receiver, &msg);
             msg_free(&info.task.msg);

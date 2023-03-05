@@ -34,42 +34,42 @@ int motor_control( aliyun_ptz_action_t action, int step) {
     } else {
         if (action == ALIYUN_PTZ_LEFT) {
             stInfo.xMotor.iEnable = 1;
-            stInfo.xMotor.iDir = MOTOR_BACKWARD;
+            stInfo.xMotor.iDir = MOTOR_FOREWARD;
             stInfo.xMotor.iSteps = step;
             stInfo.yMotor.iEnable = 0;
         } else if (action == ALIYUN_PTZ_RIGHT ) {
             stInfo.xMotor.iEnable = 1;
-            stInfo.xMotor.iDir = MOTOR_FOREWARD;
+            stInfo.xMotor.iDir = MOTOR_BACKWARD;
             stInfo.xMotor.iSteps = step;
             stInfo.yMotor.iEnable = 0;
         } else if (action == ALIYUN_PTZ_DOWN ) {
             stInfo.yMotor.iEnable = 1;
-            stInfo.yMotor.iDir = MOTOR_BACKWARD;
+            stInfo.yMotor.iDir = MOTOR_FOREWARD;
             stInfo.yMotor.iSteps = step;
             stInfo.xMotor.iEnable = 0;
         } else if (action == ALIYUN_PTZ_UP ) {
             stInfo.yMotor.iEnable = 1;
-            stInfo.yMotor.iDir = MOTOR_FOREWARD;
+            stInfo.yMotor.iDir = MOTOR_BACKWARD;
             stInfo.yMotor.iSteps = step;
             stInfo.xMotor.iEnable = 0;
         } else if( action == ALIYUN_PTZ_LEFT_UP) {
             stInfo.xMotor.iEnable = stInfo.yMotor.iEnable = 1;
             stInfo.xMotor.iSteps = stInfo.yMotor.iSteps = step;
-            stInfo.xMotor.iDir = MOTOR_BACKWARD;
-            stInfo.yMotor.iDir = MOTOR_FOREWARD;
+            stInfo.xMotor.iDir = MOTOR_FOREWARD;
+            stInfo.yMotor.iDir = MOTOR_BACKWARD;
         } else if( action == ALIYUN_PTZ_RIGHT_UP) {
             stInfo.xMotor.iEnable = stInfo.yMotor.iEnable = 1;
             stInfo.xMotor.iSteps = stInfo.yMotor.iSteps = step;
-            stInfo.xMotor.iDir = stInfo.yMotor.iDir = MOTOR_FOREWARD;
+            stInfo.xMotor.iDir = stInfo.yMotor.iDir = MOTOR_BACKWARD;
         } else if( action == ALIYUN_PTZ_LEFT_DOWN) {
             stInfo.xMotor.iEnable = stInfo.yMotor.iEnable = 1;
             stInfo.xMotor.iSteps = stInfo.yMotor.iSteps = step;
-            stInfo.xMotor.iDir = stInfo.yMotor.iDir = MOTOR_BACKWARD;
+            stInfo.xMotor.iDir = stInfo.yMotor.iDir = MOTOR_FOREWARD;
         } else if( action == ALIYUN_PTZ_RIGHT_DOWN) {
             stInfo.xMotor.iEnable = stInfo.yMotor.iEnable = 1;
             stInfo.xMotor.iSteps = stInfo.yMotor.iSteps = step;
-            stInfo.xMotor.iDir = MOTOR_FOREWARD;
-            stInfo.yMotor.iDir = MOTOR_BACKWARD;
+            stInfo.xMotor.iDir = MOTOR_BACKWARD;
+            stInfo.yMotor.iDir = MOTOR_FOREWARD;
         } else {
             log_goke( DEBUG_WARNING, " motor control parameter error with unsupported action = %d", action);
             pthread_rwlock_unlock(&lock);

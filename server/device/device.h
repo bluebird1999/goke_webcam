@@ -21,6 +21,9 @@
 #define MOTOR_AUTO		1
 #define MOTOR_STOP		0
 
+#define DEVICE_TIMEZONE_FILE    "/misc/localtime"
+#define DEVICE_TIMEZONE_PATH    "/misc/zoneinfo/Etc/"
+
 typedef enum device_init_condition_e {
     DEVICE_INIT_CONDITION_NUM = 0,
 };

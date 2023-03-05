@@ -17,6 +17,7 @@
  */
 config_t	_config_;
 long long   _universal_tag_ = 0;
+int         _reset_ = 0;
 /*
  * static
  */

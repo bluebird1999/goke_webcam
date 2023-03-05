@@ -161,6 +161,7 @@ static int recorder_thread_error(recorder_job_t *ctrl) {
 
 static int recorder_thread_start_stream(recorder_job_t *ctrl) {
     message_t msg;
+    int ret = 0;
     /********message body********/
     msg_init(&msg);
     msg.sender = msg.receiver = SERVER_RECORDER;
@@ -168,37 +169,38 @@ static int recorder_thread_start_stream(recorder_job_t *ctrl) {
     msg.arg_pass.wolf = ctrl->t_id;
     msg.arg_in.cat = ctrl->init.quality;
     msg.message = MSG_VIDEO_START;
-    if (global_common_send_message(SERVER_VIDEO, &msg) != 0) {
-        log_goke(DEBUG_SERIOUS, "video start message send failed from recorder!");
+    ret = global_common_send_message(SERVER_VIDEO, &msg);
+    if (ret!= 0) {
+        log_goke(DEBUG_SERIOUS, "video start message send failed from recorder! ret = %d", ret);
     }
     if (ctrl->init.audio) {
         msg.message = MSG_AUDIO_START;
-        if (global_common_send_message(SERVER_AUDIO, &msg) != 0) {
-            log_goke(DEBUG_SERIOUS, "audio start message send failed from recorder!");
+        ret = global_common_send_message(SERVER_AUDIO, &msg);
+        if ( ret != 0) {
+            log_goke(DEBUG_SERIOUS, "audio start message send failed from recorder! ret = %d", ret);
         }
     }
 }
 
 static int recorder_thread_stop_stream(recorder_job_t *ctrl, int real_stop) {
     message_t msg;
+    int ret = 0;
     /********message body********/
-    memset(&msg, 0, sizeof(message_t));
+    msg_init(&msg);
     msg.arg_in.wolf = ctrl->t_id;
     msg.arg_in.duck = real_stop;
     msg.arg_in.cat = ctrl->init.quality;
     msg.message = MSG_VIDEO_STOP;
     msg.sender = msg.receiver = SERVER_RECORDER;
-    if (global_common_send_message(SERVER_VIDEO, &msg) != 0) {
-        log_goke(DEBUG_SERIOUS, "video stop message send failed from recorder!");
+    ret = global_common_send_message(SERVER_VIDEO, &msg);
+    if ( ret != 0) {
+        log_goke(DEBUG_SERIOUS, "video stop message send failed from recorder! ret = %d", ret);
     }
     if (ctrl->init.audio) {
-        memset(&msg, 0, sizeof(message_t));
         msg.message = MSG_AUDIO_STOP;
-        msg.sender = msg.receiver = SERVER_RECORDER;
-        msg.arg_in.wolf = ctrl->t_id;
-        msg.arg_in.duck = real_stop;
-        if (global_common_send_message(SERVER_AUDIO, &msg) != 0) {
-            log_goke(DEBUG_SERIOUS, "audio stop message send failed from recorder!");
+        ret = global_common_send_message(SERVER_AUDIO, &msg);
+        if ( ret != 0) {
+            log_goke(DEBUG_SERIOUS, "audio stop message send failed from recorder! ret = %d",ret);
         }
     }
 }
@@ -206,7 +208,7 @@ static int recorder_thread_stop_stream(recorder_job_t *ctrl, int real_stop) {
 static int recorder_thread_check_finish(recorder_job_t *ctrl) {
     int ret = 0;
     long long int now = 0;
-    now = time_get_now_stamp();
+    now = time_get_now();
     if (now >= ctrl->run.stop)
         ret = 1;
     return ret;
@@ -215,8 +217,6 @@ static int recorder_thread_check_finish(recorder_job_t *ctrl) {
 static int recorder_thread_close(recorder_job_t *ctrl) {
     char oldname[MAX_SYSTEM_STRING_SIZE * 4];
     char snapname[MAX_SYSTEM_STRING_SIZE * 4];
-    char start[MAX_SYSTEM_STRING_SIZE * 2];
-    char stop[MAX_SYSTEM_STRING_SIZE * 2];
     char alltime[MAX_SYSTEM_STRING_SIZE * 4];
     message_t msg;
     int ret = 0;
@@ -231,10 +231,8 @@ static int recorder_thread_close(recorder_job_t *ctrl) {
     memset(oldname, 0, sizeof(oldname));
     memset(snapname, 0, sizeof(snapname));
     strcpy(oldname, ctrl->run.file_path);
-    memset(start, 0, sizeof(start));
-    time_stamp_to_date_with_zone(ctrl->run.start, start, 80, manager_config.timezone);
-    sprintf(snapname, "%s%s/snap-%s.jpg", manager_config.media_directory,
-            manager_config.folder_prefix[ ctrl->init.type], start);
+    sprintf(snapname, "%s%s/snap-%lld.jpg", manager_config.media_directory,
+            manager_config.folder_prefix[ ctrl->init.type], ctrl->run.start);
     if ((ctrl->run.last_write - ctrl->run.real_start) < recorder_config.min_length) {
         log_goke(DEBUG_WARNING, "Recording file %s is too short, removed!", ctrl->run.file_path);
         //remove file here.
@@ -246,18 +244,17 @@ static int recorder_thread_close(recorder_job_t *ctrl) {
         return -1;
     }
     ctrl->run.real_stop = ctrl->run.last_write;
-    memset(start, 0, sizeof(start));
-    memset(stop, 0, sizeof(stop));
-    time_stamp_to_date_with_zone(ctrl->run.real_start, start, 80, manager_config.timezone);
-    time_stamp_to_date_with_zone(ctrl->run.last_write, stop, 80, manager_config.timezone);
     memset(ctrl->run.file_path, 0, sizeof(ctrl->run.file_path));
-    sprintf(ctrl->run.file_path, "%s%s/%s_%s.jpg", manager_config.media_directory,
-            manager_config.folder_prefix[ ctrl->init.type], start, stop);
+    sprintf(ctrl->run.file_path, "%s%s/%lld_%lld.jpg", manager_config.media_directory,
+            manager_config.folder_prefix[ ctrl->init.type], ctrl->run.real_start, ctrl->run.last_write);
     ret = rename(snapname, ctrl->run.file_path);
+    if (ret) {
+        log_goke(DEBUG_WARNING, "rename recording snap file %s to %s failed.", snapname, ctrl->run.file_path);
+    }
     memset(ctrl->run.file_path, 0, sizeof(ctrl->run.file_path));
-    sprintf(ctrl->run.file_path, "%s%s/%s_%s.mp4", manager_config.media_directory,
-            manager_config.folder_prefix[ ctrl->init.type], start, stop);
-    ret|= rename(oldname, ctrl->run.file_path);
+    sprintf(ctrl->run.file_path, "%s%s/%lld_%lld.mp4", manager_config.media_directory,
+            manager_config.folder_prefix[ ctrl->init.type], ctrl->run.real_start, ctrl->run.last_write);
+    ret= rename(oldname, ctrl->run.file_path);
     if (ret) {
         log_goke(DEBUG_WARNING, "rename recording file %s to %s failed.", oldname, ctrl->run.file_path);
     } else {
@@ -334,14 +331,14 @@ static int recorder_thread_write_mp4_video(recorder_job_t *ctrl, unsigned char *
                     return -1;
                 }
                 if (!ctrl->run.first_frame && key) {
-                    ctrl->run.real_start = time_get_now_stamp();
+                    ctrl->run.real_start = time_get_now();
                     ctrl->run.fps = avinfo->fps;
                     ctrl->run.width = avinfo->width;
                     ctrl->run.height = avinfo->height;
                     ctrl->run.first_frame_stamp = avinfo->timestamp;
                     ctrl->run.first_frame = 1;
                 }
-                ctrl->run.last_write = time_get_now_stamp();
+                ctrl->run.last_write = time_get_now();
                 ctrl->run.last_vframe_stamp = avinfo->timestamp;
                 free(data);
                 break;
@@ -356,11 +353,9 @@ static int recorder_thread_write_mp4_video(recorder_job_t *ctrl, unsigned char *
 static int recorder_thread_init_mp4v2(recorder_job_t *ctrl) {
     int ret = 0;
     char fname[MAX_SYSTEM_STRING_SIZE * 2];
-    char timestr[MAX_SYSTEM_STRING_SIZE];
     memset(fname, 0, sizeof(fname));
-    time_stamp_to_date_with_zone(ctrl->run.start, timestr, 80, manager_config.timezone);
-    sprintf(fname, "%s%s/%s-%s", manager_config.media_directory, manager_config.folder_prefix[ctrl->init.type],
-            manager_config.folder_prefix[ctrl->init.type], timestr);
+    sprintf(fname, "%s%s/%s-%lld", manager_config.media_directory, manager_config.folder_prefix[ctrl->init.type],
+            manager_config.folder_prefix[ctrl->init.type], ctrl->run.start);
     ctrl->run.mp4_file = MP4CreateEx(fname, 0, 1, 1, 0, 0, 0, 0);
     if (ctrl->run.mp4_file == MP4_INVALID_FILE_HANDLE) {
         printf("MP4CreateEx file failed.");
@@ -383,14 +378,15 @@ static int recorder_thread_init_mp4v2(recorder_job_t *ctrl) {
     strcpy(ctrl->run.file_path, fname);
     //snapshot
     memset(fname, 0, sizeof(fname));
-    sprintf(fname, "%s%s/snap-%s.jpg", manager_config.media_directory,
-            manager_config.folder_prefix[ctrl->init.type], timestr);
+    sprintf(fname, "%s%s/snap-%lld.jpg", manager_config.media_directory,
+            manager_config.folder_prefix[ctrl->init.type], ctrl->run.start);
     /**********************************************/
     message_t msg;
     msg_init(&msg);
     msg.sender = msg.receiver = SERVER_RECORDER;
     msg.arg_in.cat = SNAP_TYPE_NORMAL;
     msg.arg_in.dog = ctrl->init.type;
+    msg.arg_in.wolf = ctrl->init.sub_type;
     msg.arg = fname;
     msg.arg_size = strlen(fname) + 1;
     server_video_snap_message(&msg);
@@ -409,17 +405,17 @@ static int recorder_thread_pause(recorder_job_t *ctrl) {
         temp2 = ctrl->run.stop - ctrl->run.start;
         memset(&ctrl->run, 0, sizeof(recorder_run_t));
         if (temp1 == 0)
-            temp1 = time_get_now_stamp();
+            temp1 = time_get_now();
         ctrl->run.start = temp1 + ctrl->init.repeat_interval;
         ctrl->run.stop = ctrl->run.start + temp2;
         ctrl->status = RECORDER_THREAD_STARTED;
         log_goke(DEBUG_INFO, "-------------add recursive recorder---------------------");
-        log_goke(DEBUG_INFO, "now=%lld", time_get_now_stamp());
+        log_goke(DEBUG_INFO, "now=%lld", time_get_now());
         log_goke(DEBUG_INFO, "start=%lld", ctrl->run.start);
         log_goke(DEBUG_INFO, "end=%lld", ctrl->run.stop);
         log_goke(DEBUG_INFO, "--------------------------------------------------");
     }
-    if (time_get_now_stamp() <= (ctrl->run.start - MAX_BETWEEN_RECODER_PAUSE)) {
+    if (time_get_now() <= (ctrl->run.start - MAX_BETWEEN_RECODER_PAUSE)) {
         recorder_thread_check_and_exit_stream(ctrl, 1);
     } else {
         recorder_thread_check_and_exit_stream(ctrl, 0);
@@ -489,7 +485,7 @@ static int recorder_thread_run(recorder_job_t *ctrl) {
             goto exit;
         }
         if (recorder_thread_check_finish(ctrl)) {
-            log_goke(DEBUG_INFO, "------------stop=%lld------------", time_get_now_stamp());
+            log_goke(DEBUG_INFO, "------------stop=%lld------------", time_get_now());
             log_goke(DEBUG_INFO, "recording finished!");
             goto close_exit;
         }
@@ -512,8 +508,8 @@ static int recorder_thread_run(recorder_job_t *ctrl) {
 
 static int recorder_thread_started(recorder_job_t *ctrl) {
     int ret;
-    if (time_get_now_stamp() >= ctrl->run.start) {
-        log_goke(DEBUG_INFO, "------------start=%lld------------", time_get_now_stamp());
+    if (time_get_now() >= ctrl->run.start) {
+        log_goke(DEBUG_INFO, "------------start=%lld------------", time_get_now());
         ret = recorder_thread_init_mp4v2(ctrl);
         if (ret) {
             log_goke(DEBUG_SERIOUS, "init mp4v2 failed!");
@@ -537,7 +533,7 @@ static int *recorder_func(void *arg) {
     pthread_detach(pthread_self());
     pthread_rwlock_wrlock(&ilock);
     memcpy(&ctrl, (recorder_job_t *) arg, sizeof(recorder_job_t));
-    sprintf(fname, "%d%d-%lld", ctrl.t_id, ctrl.init.video_channel, time_get_now_stamp());
+    sprintf(fname, "%d%d-%lld", ctrl.t_id, ctrl.init.video_channel, time_get_now());
     misc_set_thread_name(fname);
     misc_set_bit(&info.thread_start, ctrl.t_id);
     pthread_rwlock_unlock(&ilock);
@@ -547,7 +543,7 @@ static int *recorder_func(void *arg) {
     msg_buffer_init2(&audio_buff[ctrl.t_id], MSG_BUFFER_OVERFLOW_NO,
                      manager_config.msg_buffer_size_media, &vmutex[ctrl.t_id]);
     if (ctrl.init.start[0] == '0')
-        ctrl.run.start = time_get_now_stamp();
+        ctrl.run.start = time_get_now();
     else {
         ctrl.run.start = time_date_to_stamp(ctrl.init.start);// - manager_config.timezone * 3600;
     }
@@ -560,7 +556,7 @@ static int *recorder_func(void *arg) {
         (ctrl.run.stop - ctrl.run.start) > recorder_config.max_length)
         ctrl.run.stop = ctrl.run.start + recorder_config.max_length;
     log_goke(DEBUG_INFO, "-------------add new recorder---------------------");
-    log_goke(DEBUG_INFO, "now=%lld", time_get_now_stamp());
+    log_goke(DEBUG_INFO, "now=%lld", time_get_now());
     log_goke(DEBUG_INFO, "start=%lld", ctrl.run.start);
     log_goke(DEBUG_INFO, "end=%lld", ctrl.run.stop);
     log_goke(DEBUG_INFO, "recorder channel=%d", ctrl.t_id);

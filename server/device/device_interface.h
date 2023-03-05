@@ -69,5 +69,7 @@ typedef struct device_iot_config_t {
  */
 int server_device_start(void);
 int server_device_message(message_t *msg);
+int device_set_timezone(int zone);
+int device_reboot(void);
 
 #endif
